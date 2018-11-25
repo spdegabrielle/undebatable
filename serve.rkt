@@ -5,6 +5,7 @@
   "post.rkt"
   "upload.rkt"
   "user.rkt"
+  "vote.rkt"
   web-server/servlet
   web-server/servlet-env
   web-server/dispatch)
@@ -23,12 +24,15 @@
 (define-values (app-dispatch app-url)
   (dispatch-rules
     (("")
-     newest/page)
+     top/page)
+    (("top")
+     top/page)
     (("newest")
      newest/page)
     (("login")
      login/page)
-    (("logout")
+    (("logout") ; should be post
+     ; HTTP GET can't change state!
      logout/page)
     (("forgot")
      forgot-password/page)
@@ -38,10 +42,15 @@
      submit/page)
     (("item" (integer-arg))
      item/page)
+    (("vote") #:method "post"
+     vote/page)
     (("reply" (integer-arg))
      reply/page)
     (("upload")
      upload/page)
     (("uploads")
      uploads/page)
+    (("uploads" (integer-arg) (string-arg))
+     ; the string arg is just there to make things look pretty
+     download/page)
     ))

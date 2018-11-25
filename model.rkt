@@ -1,9 +1,8 @@
 #lang racket
 
-(require db sha)
+(require db file/md5 sha)
 
 (provide (all-defined-out))
-
 
 (define (sqlite3-init file)
   (if (file-exists? file)
@@ -19,7 +18,7 @@
                  pwhash BLOB,
                  created INTEGER)"
               "create table items (
-                 id INTEGER PRIMARY KEY AUTOINCREMENT,
+                 item INTEGER PRIMARY KEY AUTOINCREMENT,
                  author TEXT,
                  parent INTEGER,
                  title TEXT,
@@ -33,11 +32,26 @@
                  direction TEXT,
                  time INTEGER)"
               "create table uploads (
+                 upload INTEGER PRIMARY KEY AUTOINCREMENT,
                  user TEXT,
                  filename TEXT,
+                 type BLOB,
                  content BLOB,
-                 time INTEGER)"))
+                 time INTEGER)"
+              "create view stories as
+                 select * from items where parent is null"
+              "create view scores as
+                select item,
+                       count(case direction when 'up' then true else null end) -
+                         count(case direction when 'down' then true else null end)
+                  as score from votes group by item"
+              "create view newest as
+                 select * from items where parent is null order by created desc"
+              "create view top as
+                 select * from stories join scores using (item) group by item having score > 0"
+              ))
            new-db)))
+
 
 (define dbc (sqlite3-init "db.sqlite"))
 
@@ -47,7 +61,6 @@
   (or (not field)
       (null? field)
       (sql-null? field)))
-
 
 (define (create-user! name pw (email sql-null))
   ; PREVENT DUPLICATES. name is primary key?
@@ -61,20 +74,20 @@
                    #:text   (text   sql-null)
                    #:url    (url    sql-null)
                    #:tags   (tags   sql-null))
+  (let ((item
+          (cdr (assq 'insert-id (simple-result-info (query dbc
+            "insert into items values (?, ?, ?, ?, ?, ?, ?, ?)"
+            sql-null author parent title text url tags (current-seconds)))))))
   ; TODO: should return newly created item?
-  (query-exec dbc
-    "insert into items values (?, ?, ?, ?, ?, ?, ?, ?)"
-    sql-null author parent title text url tags (current-seconds)))
+  ; 'insert-id
+  ; https://docs.racket-lang.org/db/query-api.html?q=db#%28def._%28%28lib._db%2Fbase..rkt%29._simple-result%29%29
+       (create-vote! author item "up")
+       item))
 
-(define (create-vote! voter item direction)
+(define (create-upload! user filename type content)
   (query-exec dbc
-    "insert into votes values (?, ?, ?, ?)"
-    voter item direction (current-seconds)))
-
-(define (create-upload! user filename content)
-  (query-exec dbc
-    "insert into uploads values (?, ?, ?, ?)"
-    user filename content (current-seconds)))
+    "insert into uploads values (?, ?, ?, ?, ?, ?)"
+    sql-null user filename type content (current-seconds)))
 
 (define (sitename)
   (let ((name (query-maybe-value dbc "select name from site limit 1")))
@@ -92,21 +105,25 @@
   (let
    ((result
      (query-maybe-value dbc
-        (format "select ~a from items where id = ?" column) item)))
+        (format "select ~a from items where item = ?" column) item)))
    (if (sql-null? result) null result)))
 (define author ((curry item) 'author))
 (define created ((curry item) 'created))
 (define text ((curry item) 'text))
 (define title ((curry item) 'title))
 
-(define (items) (query-list dbc "select id from items"))
+(define (items) (query-list dbc "select item from items"))
 
 (define parent ((curry item) 'parent))
 (define (children item)
  (query-list dbc
-   "select id from items where parent = ? order by created desc" item))
+   "select item from items where parent = ? order by created desc" item))
 
-(define (uploads) (query-list dbc "select filename from uploads"))
+(define (uploads)
+  (rows-result-rows (query dbc "select upload,filename from uploads")))
+
+(define (download id)
+  (first (rows-result-rows (query dbc "select type,content from uploads where upload=?" id))))
 
 (define (root item)
   (let ((p (parent item)))
@@ -116,19 +133,20 @@
 
 (define (user? name)
   (query-maybe-value dbc
-    "select name from users where name = ?" name))
-
-(define (stories)
- (query-list dbc
-   "select id from items where parent is null"))
+    "select name from users where name = ?" (~a name)))
 
 (define (newest)
  (query-list dbc
-   "select id from items where parent is null order by created desc"))
+   "select item from newest"))
+
+(define (top)
+ (query-list dbc
+   "select item from top"))
 
 (define (descendants item)
+  ; recursive query. is this too ugly?
  (query-list dbc
-   "with descendants(n) as (values(?) union select id from items, descendants where items.parent=descendants.n) select id from items where items.id in descendants and not items.id = ?" item item))
+   "with descendants(n) as (values(?) union select item from items, descendants where items.parent=descendants.n) select item from items where items.item in descendants and not items.item = ?" item item))
 
 (define (search terms)
   ;TODO
@@ -143,6 +161,32 @@
       "select pwhash from users where name = ?" name)
      => (λ (it) (bytes=? (sha512 pw) it)))
     (else #f)))
+
+(define (delete-vote! voter item direction)
+  'todo)
+
+(define (create-vote! voter item direction)
+  (query-exec dbc
+    "insert into votes values (?, ?, ?, ?)"
+    voter item direction (current-seconds)))
+
+(define (voted voter item)
+  (query-list dbc
+    "select voter from votes where voter=? and item=?"
+    voter item))
+
+(define (score item)
+  (query-value dbc
+    "select coalesce((select score from scores where item=?),0)"
+    item))
+
+(define (rank item)
+  'todo)
+
+(define (user-votes voter)
+  (query-list dbc
+    "select voter from votes where voter=?"
+    voter))
 
 ;(create-item! "pelle" #:text "hello world")
 ;(author 1)

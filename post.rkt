@@ -11,23 +11,22 @@
   (only-in markdown parse-markdown)
   xml)
 
-(provide submit/page reply/page newest/page item/page edit/page)
+(provide submit/page reply/page newest/page item/page edit/page top/page)
 
 (define/page (process-item)
   (let ((user (get-user (current-request))))
-       (match (request-bindings/raw (current-request))
-         ((list-no-order (binding:form #"title" title)
-                         (binding:form #"text" text))
-                 (create-item! (~a user)
-                     #:title  (~a title)
-                     #:text (~a text)))
-         ((list-no-order (binding:form #"parent" parent)
-                         (binding:form #"text"   text))
-          (create-item! (~a user)
-                     #:parent (string->number (~a parent))
-                     #:text   (~a text))))
-       (redirect-to
-         (~a "/"))))
+       (redirect-to (~a "/item/"
+         (match (request-bindings/raw (current-request))
+           ((list-no-order (binding:form #"title" title)
+                           (binding:form #"text" text))
+                   (create-item! (~a user)
+                       #:title  (~a title)
+                       #:text (~a text)))
+           ((list-no-order (binding:form #"parent" parent)
+                           (binding:form #"text"   text))
+            (create-item! (~a user)
+                       #:parent (string->number (~a parent))
+                       #:text   (~a text))))))))
 
 (define/page (edit/page item)
              'foo)
@@ -44,14 +43,17 @@
                  "New item"
                  `(form ((action ,(embed-url process-item))
                          (method "post"))
-                         (div (input   ((type        "text")
-                                        (placeholder "title")
-                                        (name        "title"))))
-                         (div (textarea ((placeholder "text")
+                         (div (input    ((class       "field")
+                                         (type        "text")
+                                         (placeholder "title")
+                                         (name        "title"))))
+                         (div (textarea ((class       "field")
+                                         (placeholder "text")
                                          (rows        "5")
                                          (cols        "40")
                                          (name        "text"))))
-                         (div (input    ((type "submit")
+                         (div (input    ((class "button")
+                                         (type  "submit")
                                          (value "Submit"))))))))))))
 
 
@@ -65,17 +67,19 @@
                (render-page
                  user
                  (~a "Reply to " (title parent))
-                 `(ul ,(render-item/single parent))
+                 `(ul ,(render-item/single user (~a "/reply/" parent) parent))
                  `(form ((action ,(embed-url process-item))
                          (method "post"))
                          (input ((type  "hidden")
                                  (name  "parent")
                                  (value ,(~a parent))))
-                         (div (textarea ((placeholder "text")
+                         (div (textarea ((class       "field")
+                                         (placeholder "text")
                                          (rows        "5")
                                          (cols        "40")
                                          (name        "text"))))
-                         (div (input    ((type "submit")
+                         (div (input    ((class "button")
+                                         (type  "submit")
                                          (value "Submit"))))))))))))
 
 
@@ -136,16 +140,20 @@
 (define (markdown text)
   (parse-markdown (xml-attribute-encode text)))
 
-(define (render-item item
+(define (render-item user here item
                      #:title?    (title? #f)
                      #:text?     (text? #f)
                      #:children? (children? #f)
                      #:reply?    (reply? #f))
-    `(li ,(votelinks item)
-         ,(itemline item)
-         ,(if title? `(div (a ((href ,(~a "/item/" item))) ,(title item))) "")
-         ,(if text? `(div ,@(markdown (text item))) "")
-         ,(if children? `(ul ,@(map render-item/tree (children item))) "")))
+    `(li
+       (div ((class "votable"))
+           ,(votelinks item user here)
+           (div ((class "item"))
+             ,(itemline item)
+             ,(if title? `(div (a ((class "title") (href ,(~a "/item/" item))) ,(title item))) "")
+             ,(if text? `(div ,@(markdown (text item))) "")))
+       (div ((class "children"))
+            ,(if children? `(ul ,@(map (curry render-item/tree user here) (children item))) ""))))
 
 (define render-item/list
   (curry render-item #:title? #t))
@@ -153,22 +161,29 @@
 (define render-item/single
   (curry render-item #:text? #t))
 
-(define render-item/child
-  (curry render-item #:text? #t #:reply? #t))
-
 (define render-item/tree
-  (curry render-item #:title? #t #:text? #t #:reply? #t #:children? #t))
+  (curry render-item #:text? #t #:reply? #t #:children? #t))
 
 (define/page (newest/page)
-  (time (response/xexpr
-    (render-page
-      (get-user (current-request))
-      "Newest"
-      `(ol ,@(map render-item/list (newest)))))))
+  (let ((user (get-user (current-request))))
+    (time (response/xexpr
+      (render-page
+        user
+        "Newest"
+        `(ul ,@(map (curry render-item/list user "/") (newest))))))))
+
+(define/page (top/page)
+  (let ((user (get-user (current-request))))
+    (time (response/xexpr
+      (render-page
+        user
+        "Top"
+        `(ul ,@(map (curry render-item/list user "/") (top))))))))
 
 (define/page (item/page item)
-  (response/xexpr
-    (render-page
-      (get-user (current-request))
-      "Item"
-      `(ul ,(render-item/tree item)))))
+  (let ((user (get-user (current-request))))
+    (response/xexpr
+      (render-page
+        user
+        "Item"
+        `(ul ,(render-item/tree user (~a "/item/" item) item))))))

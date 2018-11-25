@@ -7,13 +7,13 @@
 ; #:preamble #"<!DOCTYPE html>"
 
 (define menu-items
-  '("newest" "submit" "upload" "uploads"))
+  '("top" "newest" "submit" "upload" "uploads"))
 
 (define (menu items (user null))
   `(div ((class "menu"))
-;        (a ((href "/")) (img ((src "publish.png") (class "logo"))))
         (span
-          (span (a ((href "/") (class "title")) ,(sitename)) " ")
+          (a ((href "/")) (img ((src "/favicon.ico") (class "logo"))))
+          (span (a ((href "/") (class "sitename")) ,(sitename)) " ")
           (span ,@(map (λ (i) `(span (a ((href ,(string-append "/" i))) ,i) " ")) items)))
         ,(if (not user)
              `(span (a ((href "/login")) "login") " ")

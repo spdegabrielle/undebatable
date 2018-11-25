@@ -26,6 +26,8 @@ Intended as a simple HN/Reddit and Feedly/Google Reader and DropBox/WeTransfer k
 * https://redditblog.com/2009/10/15/reddits-new-comment-sorting-system/
 
 ### Other
+* check referrer to prevent CSRF attacks (or add an autho token). See "this post upvotes itself"
+* check if referrer is from facebook or google, and if so, tell people about issues. same with chrome or internet explorer, etc.
 * login-less file upload / anonymous, with file expiry based on user/item score and size of file. small files should be kept indefinitely.
 * [Google Reader](http://googlereader.blogspot.com/2008/12/square-is-new-round.html)
 * [Pretty buttons](https://picturepan2.github.io/spectre/elements/buttons.html)

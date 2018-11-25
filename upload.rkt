@@ -16,20 +16,19 @@
 ; TODO: post requests have a MIME type, yes?
 ; use that to determine file type
 
-(provide upload/page uploads/page)
+(provide (all-defined-out))
 
 (define/page (upload/page)
-
   (define/page (process-upload)
-    (let ((user (get-user (current-request)))
-          (uploads null))
-          (map (λ (binding)
-                  (match binding
-                    ((binding:file field filename headers content)
-                     (create-upload! user (~a filename) content))))
+    (map (λ (binding)
+            (match binding
+              ((binding:file field filename headers content)
+               (let ((user (get-user (current-request)))
+                     (content-type (header-value (headers-assq #"Content-Type" headers))))
+                    (create-upload! user (~a filename) content-type content)))))
                (request-bindings/raw (current-request)))
+    (redirect-to "/uploads"))
     ; TODO: should redirect to image list
-          (redirect-to "/")))
 
   (let ((user (get-user (current-request))))
     (if (not user)
@@ -43,26 +42,45 @@
                  `(form ((action ,(embed-url process-upload))
                          (method "post")
                          (enctype "multipart/form-data"))
-                         (div (input    ((type        "file")
+                         (div (input    ((class       "field")
+                                         (type        "file")
                                          (name        "file")
                                          (multiple    "multiple"))))
-                         (div (input    ((type "submit")
-                                         (value "Upload"))))))))))))
+                         (div (input    ((class  "button")
+                                         (type   "submit")
+                                         (value  "Upload"))))))))))))
 
 
 ; FILES
+
+(define (download-link id/filename)
+  `(a ((href ,(~a "/uploads/"
+                  (vector-ref id/filename 0) "/"
+                  (vector-ref id/filename 1))))
+      ,(~a (vector-ref id/filename 1))))
 
 (define/page (uploads/page)
   (response/xexpr
     (render-page
       (get-user (current-request))
-      "Items"
-      `(div ,(~a (uploads))))))
-;     `(ul ,@(map (λ (f) `(li ,(download-link (build-path "/" f))))
-;                 (directory-list))))))
+      "Uploads"
+     `(ul ,@(map (λ (f) `(li ,(download-link f)))
+                 (uploads))))))
 
+(define/page (download/page file-id (filename null))
+  (letrec ((type/content (download file-id))
+           (type (vector-ref type/content 0))
+           (content (vector-ref type/content 1)))
+  (response
+    200 #"OK"
+    (current-seconds) type ;TEXT/HTML-MIME-TYPE
+    empty
+    (λ (op) (write-bytes content op)))))
+;    (bytes->list (file-content file-id))))
 
 (define (render-file filepath)
+  ; not in use right now
+  ; TODO: base on MIME 
   (match (string-downcase (~a (path-get-extension filepath)))
     ((or ".gif" ".png" ".jpg" ".jpeg")
      `(a ((href ,filepath)) (img ((class "embed") (src ,filepath)))))
