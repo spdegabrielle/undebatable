@@ -151,3 +151,19 @@ textarea {
   list-style-type: none;
   margin-left: 1em;
 }
+
+.footer {
+  position: fixed;
+  text-align: center;
+  width: 100vw;
+  bottom: 1em;
+  left: 0;
+  font-size: small;
+  color: gray;
+}
+
+blockquote {
+  border-left: 0.3em solid lightgray;
+  padding-left: 1em;
+  margin: 0;
+}

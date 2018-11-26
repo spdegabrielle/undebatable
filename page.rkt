@@ -7,12 +7,12 @@
 ; #:preamble #"<!DOCTYPE html>"
 
 (define menu-items
-  '("top" "newest" "submit" "uploads"))
+  '("top" "newest" "comments" "submit" "uploads"))
 
 (define (menu items (user null))
   `(div ((class "menu"))
         (span
-          (a ((href "/")) (img ((src "/favicon.ico") (class "logo"))))
+;          (a ((href "/")) (img ((src "/favicon.ico") (class "logo"))))
           (span (a ((href "/") (class "sitename")) ,(sitename)) " ")
           (span ,@(map (λ (i) `(span (a ((href ,(string-append "/" i))) ,i) " ")) items)))
         ,(if (not user)
@@ -24,15 +24,15 @@
   `(html
      (head
        (meta ((charset "utf-8")))
-       ;(meta ((http-equiv "Content-Security-Policy") (content "script-src 'none';")))
+       (meta ((http-equiv "Content-Security-Policy") (content "script-src 'none';")))
        (link ((rel "stylesheet") (href "/minimalist.css")))
        )
      (body
-       (div ((class "warning")) "WARNING: UNDER ACTIVE DEVELOPMENT. EXPECT ERRORS AND CRASHES.")
+       (div ((class "warning")) "WARNING: UNDER ACTIVE DEVELOPMENT. EXPECT ERRORS AND DATA LOSS.")
        (title ,title)
        ,(menu menu-items user)
        (div ((class "message")) ,message)
        ,@content
 ;       (div ,search-bar)
+       (div ((class "footer")) "© 2018 Pelle Hjek")
      )))
- 

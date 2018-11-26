@@ -7,17 +7,18 @@ My intention is to make a simple hybrid of HN/Lobsters and Feedly/Google Reader 
 
 ## Design goals
 
-- minimal
-- fast
-- no js
-- as much SQL as possible
-- no configuration required
-- easy backup (*all* state goes in the database, including file uploads)
-- avoid PLOP when possible and convenient
+- minimal.
+- fast.
+- no js frameworks. no js. not even a semicolon of it.
+- use SQL as much as possible.
+- no configuration needed.
+- easy backup. *all* state goes in the sqlite database, including file uploads.
+- avoid PLOP when possible and convenient.
 
-## Install
+## How to run
 
-First install [**Racket**](https://racket-lang.org), then run `./install` to fetch dependencies
+- install [**Racket**](https://racket-lang.org)
+- `./debate`
 
 ## Ideas and resources
 

@@ -1,8 +1,13 @@
 #lang racket
 
-(require db file/md5 sha)
+(require db openssl/sha1)
 
 (provide (all-defined-out))
+
+; TODO : do some kind of ORM or some structs to return some sane Racket objects;
+; and to do less queries!
+; it will give a simpler interface, too, if the entire item with all useful info is returned
+; but it *does* need more fields than in the table to account for derived data, e.g. votes, etc
 
 (define (sqlite3-init file)
   (if (file-exists? file)
@@ -51,7 +56,8 @@
 
               "create view comments as
                  select * from items
-                 where parent is not null"
+                 where parent is not null
+                 order by created desc"
 
               "create view scores as
                 select item,
@@ -95,7 +101,7 @@
   ; PREVENT DUPLICATES. user is primary key?
   (query-exec dbc
     "insert into users values (?, ?, ?, ?)"
-    user email (sha512 pw) (current-seconds)))
+    user email (sha1-bytes (open-input-bytes pw)) (current-seconds)))
 
 (define (create-item! user
                    #:parent (parent sql-null)
@@ -107,9 +113,7 @@
           (cdr (assq 'insert-id (simple-result-info (query dbc
             "insert into items values (?, ?, ?, ?, ?, ?, ?, ?)"
             sql-null user parent title text url tags (current-seconds)))))))
-  ; TODO: should return newly created item?
-  ; 'insert-id
-  ; https://docs.racket-lang.org/db/query-api.html?q=db#%28def._%28%28lib._db%2Fbase..rkt%29._simple-result%29%29
+  ; TODO users shouldn't be able to vote for their own and gain karma
        (create-vote! user item "up")
        item))
 
@@ -168,6 +172,10 @@
  (query-list dbc
    "select item from newest"))
 
+(define (comments)
+ (query-list dbc
+   "select item from comments"))
+
 (define (top)
  (query-list dbc
    "select item from top"))
@@ -179,7 +187,12 @@
 (define (descendants item)
   ; recursive query. is this too ugly?
  (query-list dbc
-   "with descendants(n) as (values(?) union select item from items, descendants where items.parent=descendants.n) select item from items where items.item in descendants and not items.item = ?" item item))
+   "with descendants(n) as (values(?)
+    union select item from items,descendants
+    where items.parent=descendants.n)
+   select item from items
+   where items.item in descendants and not items.item = ?"
+   item item))
 
 (define (search terms)
   ;TODO
@@ -192,7 +205,7 @@
   (cond
     ((query-maybe-value dbc
       "select pwhash from users where user = ?" user)
-     => (λ (it) (bytes=? (sha512 pw) it)))
+     => (λ (it) (bytes=? (sha1-bytes (open-input-bytes pw)) it)))
     (else #f)))
 
 (define (delete-vote! user item direction)

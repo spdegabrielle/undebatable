@@ -12,12 +12,20 @@
 
 (provide (all-defined-out))
 
+(define (not-found req)
+  (response/xexpr
+    `(html (body (p
+       ((style "text-align: center; font-family: sans; font-size: 140pt; font-weight: bold;"))
+       "404")))
+     #:code 404))
+
 (define (serve)
   (serve/servlet app-dispatch
     #:servlet-regexp #rx""
     #:port 8080
     #:launch-browser? #f
     #:listen-ip #f
+    #:file-not-found-responder not-found
 ;    #:log-file ".log"
     #:server-root-path (current-directory)))
 
@@ -29,6 +37,8 @@
      top/page)
     (("newest")
      newest/page)
+    (("comments")
+     comments/page)
     (("login")
      login/page)
     (("logout") ; should be post

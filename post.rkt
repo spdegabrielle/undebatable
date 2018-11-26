@@ -5,13 +5,15 @@
   "page.rkt"
   "login.rkt"
   "vote.rkt"
+  "markdown.rkt"
   web-server/servlet
   web-server/page
-  anaphoric
-  (only-in markdown parse-markdown)
   xml)
 
-(provide submit/page reply/page newest/page item/page edit/page top/page)
+; TODO refactor render/item completely
+; TODO display order is: TITLE, ITEMLINE, TEXT, (children)
+
+(provide submit/page reply/page newest/page item/page edit/page top/page comments/page)
 
 (define/page (process-item)
   (let ((user (get-user (current-request))))
@@ -66,8 +68,9 @@
              (response/xexpr
                (render-page
                  user
-                 (~a "Reply to " (title parent))
-                 `(ul ,(render-item/single user (~a "/reply/" parent) parent))
+                 "Reply"
+                 `(ul ((class "items"))
+                      ,(render-item/single user (~a "/reply/" parent) parent))
                  `(form ((action ,(embed-url process-item))
                          (method "post"))
                          (input ((type  "hidden")
@@ -137,11 +140,6 @@
               (else                   (plural (floor (/ since (* 60)))       "minute")))
         " ago")))
 
-(define (markdown text)
-;    (with-output-to-string
-;      (thunk (system* "/usr/bin/markdown" "-s" text))))
-  (parse-markdown (xml-attribute-encode text)))
-
 (define (render-item user here item
                      #:title?    (title? #f)
                      #:text?     (text? #f)
@@ -153,9 +151,10 @@
            (div ((class "item"))
              ,(itemline item)
              ,(if title? `(div (a ((class "title") (href ,(~a "/item/" item))) ,(title item))) "")
-             ,(if text? `(div ,@(markdown (text item))) "")))
+             ,(if text? `(div ,(string->xexpr (markdown (xml-attribute-encode (text item))))) "")))
        (div ((class "children"))
-            ,(if children? `(ul ,@(map (curry render-item/tree user here) (children item))) ""))))
+            ,(if children? `(ul ((class "items"))
+                                ,@(map (curry render-item/tree user here) (children item))) ""))))
 
 (define render-item/list
   (curry render-item #:title? #t))
@@ -184,10 +183,20 @@
         `(ul ((class "items"))
              ,@(map (curry render-item/list user "/") (top))))))))
 
+(define/page (comments/page)
+  (let ((user (get-user (current-request))))
+    (time (response/xexpr
+      (render-page
+        user
+        "Comments"
+        `(ul ((class "items"))
+             ,@(map (curry render-item/single user "/") (comments))))))))
+
 (define/page (item/page item)
   (let ((user (get-user (current-request))))
     (response/xexpr
       (render-page
         user
         "Item"
-        `(ul ,(render-item/tree user (~a "/item/" item) item))))))
+        `(ul ((class "items"))
+             ,(render-item/tree user (~a "/item/" item) item))))))
