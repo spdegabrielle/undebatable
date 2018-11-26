@@ -46,8 +46,6 @@
      vote/page)
     (("reply" (integer-arg))
      reply/page)
-    (("upload")
-     upload/page)
     (("uploads")
      uploads/page)
     (("uploads" (integer-arg) (string-arg))

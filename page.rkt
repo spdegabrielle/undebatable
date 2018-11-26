@@ -7,7 +7,7 @@
 ; #:preamble #"<!DOCTYPE html>"
 
 (define menu-items
-  '("top" "newest" "submit" "upload" "uploads"))
+  '("top" "newest" "submit" "uploads"))
 
 (define (menu items (user null))
   `(div ((class "menu"))
@@ -17,7 +17,8 @@
           (span ,@(map (λ (i) `(span (a ((href ,(string-append "/" i))) ,i) " ")) items)))
         ,(if (not user)
              `(span (a ((href "/login")) "login") " ")
-             `(span (span (a ((href "/user")) ,user) " ") (span (a ((href "/logout")) "logout") " ")))))
+             `(span (span (a ((href "/user")) ,(~a user " (" (karma user) ")")) " ")
+                    (span (a ((href "/logout")) "logout") " ")))))
 
 (define (render-page user title #:message (message "") . content)
   `(html
@@ -27,6 +28,7 @@
        (link ((rel "stylesheet") (href "/minimalist.css")))
        )
      (body
+       (div ((class "warning")) "WARNING: UNDER ACTIVE DEVELOPMENT. EXPECT ERRORS AND CRASHES.")
        (title ,title)
        ,(menu menu-items user)
        (div ((class "message")) ,message)

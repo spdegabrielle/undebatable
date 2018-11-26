@@ -18,7 +18,7 @@
 
 (provide (all-defined-out))
 
-(define/page (upload/page)
+(define/page (uploads/page)
   (define/page (process-upload)
     (map (λ (binding)
             (match binding
@@ -28,7 +28,6 @@
                     (create-upload! user (~a filename) content-type content)))))
                (request-bindings/raw (current-request)))
     (redirect-to "/uploads"))
-    ; TODO: should redirect to image list
 
   (let ((user (get-user (current-request))))
     (if (not user)
@@ -42,13 +41,15 @@
                  `(form ((action ,(embed-url process-upload))
                          (method "post")
                          (enctype "multipart/form-data"))
-                         (div (input    ((class       "field")
-                                         (type        "file")
-                                         (name        "file")
-                                         (multiple    "multiple"))))
-                         (div (input    ((class  "button")
-                                         (type   "submit")
-                                         (value  "Upload"))))))))))))
+                         (span (input ((class       "field")
+                                       (type        "file")
+                                       (name        "file")
+                                       (multiple    "multiple"))))
+                         (span (input ((class  "button")
+                                       (type   "submit")
+                                       (value  "Upload")))))
+                 `(ul ,@(map (λ (f) `(li ,(download-link f)))
+                             (uploads))))))))))
 
 
 ; FILES
@@ -58,14 +59,6 @@
                   (vector-ref id/filename 0) "/"
                   (vector-ref id/filename 1))))
       ,(~a (vector-ref id/filename 1))))
-
-(define/page (uploads/page)
-  (response/xexpr
-    (render-page
-      (get-user (current-request))
-      "Uploads"
-     `(ul ,@(map (λ (f) `(li ,(download-link f)))
-                 (uploads))))))
 
 (define/page (download/page file-id (filename null))
   (letrec ((type/content (download file-id))

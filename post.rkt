@@ -138,6 +138,8 @@
         " ago")))
 
 (define (markdown text)
+;    (with-output-to-string
+;      (thunk (system* "/usr/bin/markdown" "-s" text))))
   (parse-markdown (xml-attribute-encode text)))
 
 (define (render-item user here item
@@ -170,7 +172,8 @@
       (render-page
         user
         "Newest"
-        `(ul ,@(map (curry render-item/list user "/") (newest))))))))
+        `(ul ((class "items"))
+              ,@(map (curry render-item/list user "/") (newest))))))))
 
 (define/page (top/page)
   (let ((user (get-user (current-request))))
@@ -178,7 +181,8 @@
       (render-page
         user
         "Top"
-        `(ul ,@(map (curry render-item/list user "/") (top))))))))
+        `(ul ((class "items"))
+             ,@(map (curry render-item/list user "/") (top))))))))
 
 (define/page (item/page item)
   (let ((user (get-user (current-request))))

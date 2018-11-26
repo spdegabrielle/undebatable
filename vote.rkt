@@ -8,6 +8,8 @@
 
 (provide (all-defined-out))
 
+; use different arrow chars for enabled/disabled/applied
+
 (define (votelink item (direction "up") (user null) (then null))
   `(div (form ((method "post") (action "/vote"))
      (input ((type "hidden") (name "item") (value ,(~a item))))

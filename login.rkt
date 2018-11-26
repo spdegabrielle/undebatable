@@ -22,9 +22,9 @@
   (make-id-cookie "login" salt (~a username)))
 
 (define (get-user request)
-  (request-id-cookie "login" salt request))
-;  (let ((user (request-id-cookie "login" salt request)))
-;       (if (user? user) user #f)))
+;  (request-id-cookie "login" salt request))
+  (let ((user (request-id-cookie "login" salt request)))
+       (if (user? user) user #f)))
 
 (define/page (login/page)
 

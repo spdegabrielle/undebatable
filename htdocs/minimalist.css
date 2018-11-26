@@ -30,6 +30,15 @@ foo {
   font-weight: bold;
 }
 
+img {
+  max-width: 100%;
+}
+
+.warning {
+  color:red;
+  text-align: center;
+}
+
 .votelinks {
   display: table-cell;
   vertical-align: top;
@@ -92,8 +101,7 @@ a:link, a:visited {
   border: 1px solid rgba(0,0,0,0.5);
   background: rgba(0,0,0,0.1);
   border-radius: 0.3em;
-  margin-top: 0.6em;
-  margin-bottom: 0.6em;
+  margin: 0.5em;
   padding: 0.5em;
   color: black;
 }
@@ -135,11 +143,11 @@ textarea {
   font-size: larger;
 }
 
-ul {
+.items {
   padding-left: 0.5em;
 }
 
-ul > li {
+.items > li {
   list-style-type: none;
   margin-left: 1em;
 }

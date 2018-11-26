@@ -1,23 +1,25 @@
 # Debate
-A web forum written in Racket. **Work in progress!**
+A web forum written in Racket.
 
-Intended as a simple HN/Reddit and Feedly/Google Reader and DropBox/WeTransfer kind of hybrid.
+**Work in progress! Breakage guaranteed!**
 
-## Desgin
+My intention is to make a simple hybrid of HN/Lobsters and Feedly/Google Reader and DropBox/WeTransfer.
+
+## Design goals
 
 - minimal
+- fast
 - no js
-- no config required
-- easy backup: all state is in a sqlite database file
-- avoid PLOP *when possible*
+- as much SQL as possible
+- no configuration required
+- easy backup (*all* state goes in the database, including file uploads)
+- avoid PLOP when possible and convenient
 
-## Dependencies
-- Racket packages
-  - sha
-  - markdown
-  - (anaphoric)
+## Install
 
-## Ideas
+First install [**Racket**](https://racket-lang.org), then run `./install` to fetch dependencies
+
+## Ideas and resources
 
 ### Ranking
 * http://www.evanmiller.org/how-not-to-sort-by-average-rating.html
@@ -26,6 +28,7 @@ Intended as a simple HN/Reddit and Feedly/Google Reader and DropBox/WeTransfer k
 * https://redditblog.com/2009/10/15/reddits-new-comment-sorting-system/
 
 ### Other
+* must!: seen/replies, like lobsters. good for old threads.
 * check referrer to prevent CSRF attacks (or add an autho token). See "this post upvotes itself"
 * check if referrer is from facebook or google, and if so, tell people about issues. same with chrome or internet explorer, etc.
 * login-less file upload / anonymous, with file expiry based on user/item score and size of file. small files should be kept indefinitely.

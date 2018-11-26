@@ -9,49 +9,78 @@
       (sqlite3-connect #:database file)
       (let ((new-db (sqlite3-connect #:database file #:mode 'create)))
        (map ((curry query-exec) new-db)
+            ; TABLES
             '("create table site (
-                 name TEXT,
-                 link TEXT)"
+                 name      TEXT,
+                 link      TEXT)"
+
               "create table users (
-                 name TEXT,
-                 email TEXT,
-                 pwhash BLOB,
-                 created INTEGER)"
+                 user      TEXT,
+                 email     TEXT,
+                 pwhash    BLOB,
+                 created   INTEGER)"
+
               "create table items (
-                 item INTEGER PRIMARY KEY AUTOINCREMENT,
-                 author TEXT,
-                 parent INTEGER,
-                 title TEXT,
-                 text TEXT,
-                 url TEXT,
-                 tags TEXT,
-                 created INTEGER)"
+                 item      INTEGER PRIMARY KEY AUTOINCREMENT,
+                 user      TEXT,
+                 parent    INTEGER,
+                 title     TEXT,
+                 text      TEXT,
+                 url       TEXT,
+                 tags      TEXT,
+                 created   INTEGER)"
+
               "create table votes (
-                 voter TEXT,
-                 item INTEGER,
+                 user      TEXT,
+                 item      INTEGER,
                  direction TEXT,
-                 time INTEGER)"
+                 time      INTEGER)"
+
               "create table uploads (
-                 upload INTEGER PRIMARY KEY AUTOINCREMENT,
-                 user TEXT,
-                 filename TEXT,
-                 type BLOB,
-                 content BLOB,
-                 time INTEGER)"
+                 upload    INTEGER PRIMARY KEY AUTOINCREMENT,
+                 user      TEXT,
+                 filename  TEXT,
+                 type      BLOB,
+                 content   BLOB,
+                 time      INTEGER)"
+
+              ; VIEWS
               "create view stories as
-                 select * from items where parent is null"
+                 select * from items
+                 where parent is null"
+
+              "create view comments as
+                 select * from items
+                 where parent is not null"
+
               "create view scores as
                 select item,
-                       count(case direction when 'up' then true else null end) -
-                         count(case direction when 'down' then true else null end)
-                  as score from votes group by item"
+                       count(case direction when 'up' then 1 else null end) -
+                         count(case direction when 'down' then 1 else null end)
+                  as score from votes
+                  group by item"
+
               "create view newest as
-                 select * from items where parent is null order by created desc"
+                 select * from stories
+                 order by created desc"
+
               "create view top as
-                 select * from stories join scores using (item) group by item having score > 0"
+                 select * from stories join scores using (item)
+                 group by item having score > 0
+                 order by score desc, created desc"
+
+              "create view karmas as
+                 select user,coalesce(sum(score),0) as karma
+                 from users
+                 left join items using (user)
+                 left join scores using (item)
+                 group by user
+                 order by score desc"
+              ; TODO descendants
+              ; TODO children
+              ; TODO add NOT NULL constraints
               ))
            new-db)))
-
 
 (define dbc (sqlite3-init "db.sqlite"))
 
@@ -62,13 +91,13 @@
       (null? field)
       (sql-null? field)))
 
-(define (create-user! name pw (email sql-null))
-  ; PREVENT DUPLICATES. name is primary key?
+(define (create-user! user pw (email sql-null))
+  ; PREVENT DUPLICATES. user is primary key?
   (query-exec dbc
     "insert into users values (?, ?, ?, ?)"
-    name (sha512 pw) email (current-seconds)))
+    user email (sha512 pw) (current-seconds)))
 
-(define (create-item! author
+(define (create-item! user
                    #:parent (parent sql-null)
                    #:title  (title  sql-null)
                    #:text   (text   sql-null)
@@ -77,11 +106,11 @@
   (let ((item
           (cdr (assq 'insert-id (simple-result-info (query dbc
             "insert into items values (?, ?, ?, ?, ?, ?, ?, ?)"
-            sql-null author parent title text url tags (current-seconds)))))))
+            sql-null user parent title text url tags (current-seconds)))))))
   ; TODO: should return newly created item?
   ; 'insert-id
   ; https://docs.racket-lang.org/db/query-api.html?q=db#%28def._%28%28lib._db%2Fbase..rkt%29._simple-result%29%29
-       (create-vote! author item "up")
+       (create-vote! user item "up")
        item))
 
 (define (create-upload! user filename type content)
@@ -107,7 +136,7 @@
      (query-maybe-value dbc
         (format "select ~a from items where item = ?" column) item)))
    (if (sql-null? result) null result)))
-(define author ((curry item) 'author))
+(define author ((curry item) 'user))
 (define created ((curry item) 'created))
 (define text ((curry item) 'text))
 (define title ((curry item) 'title))
@@ -131,9 +160,9 @@
        (root p)
        item)))
 
-(define (user? name)
+(define (user? user)
   (query-maybe-value dbc
-    "select name from users where name = ?" (~a name)))
+    "select user from users where user = ?" (~a user)))
 
 (define (newest)
  (query-list dbc
@@ -142,6 +171,10 @@
 (define (top)
  (query-list dbc
    "select item from top"))
+
+(define (karma user)
+ (query-value dbc
+   "select karma from karmas where user=?" user))
 
 (define (descendants item)
   ; recursive query. is this too ugly?
@@ -155,25 +188,25 @@
     "SELECT count(*) FROM enrondata1 WHERE content MATCH 'linux';"))
 
 ;TODO: put all cookies in the model and in the database
-(define (good-login? name pw)
+(define (good-login? user pw)
   (cond
     ((query-maybe-value dbc
-      "select pwhash from users where name = ?" name)
+      "select pwhash from users where user = ?" user)
      => (λ (it) (bytes=? (sha512 pw) it)))
     (else #f)))
 
-(define (delete-vote! voter item direction)
+(define (delete-vote! user item direction)
   'todo)
 
-(define (create-vote! voter item direction)
+(define (create-vote! user item direction)
   (query-exec dbc
     "insert into votes values (?, ?, ?, ?)"
-    voter item direction (current-seconds)))
+    user item direction (current-seconds)))
 
-(define (voted voter item)
+(define (voted user item)
   (query-list dbc
-    "select voter from votes where voter=? and item=?"
-    voter item))
+    "select user from votes where user=? and item=?"
+    user item))
 
 (define (score item)
   (query-value dbc
@@ -183,22 +216,7 @@
 (define (rank item)
   'todo)
 
-(define (user-votes voter)
+(define (user-votes user)
   (query-list dbc
-    "select voter from votes where voter=?"
-    voter))
-
-;(create-item! "pelle" #:text "hello world")
-;(author 1)
-;(stories)
-;(get-item "author" 1)
-;(author 1)
-
-;(new-user! "pelle" #"foo")
-;(new-item! "pelle" #:text "hello world")
-;(new-vote! "pelle" 2 "up")
-
-;(query-list dbc "select name from users where name like '%'")
-
-;(query-exec dbc "insert into the_numbers values (42, 'the answer')")
-;(query-exec dbc "delete from the_numbers where n = $1" 42)
+    "select user from votes where user=?"
+    user))
