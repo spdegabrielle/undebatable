@@ -20,7 +20,7 @@
              (value ,(~a (if (equal? direction "up") "▲" "▼"))))))))
 
 (define (votable? user item)
-  (and (user? user)
+  (and (existing-user? user)
        (empty? (voted user item))))
 
 (define (votelinks item (user null) (then null))

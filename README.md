@@ -3,22 +3,39 @@ A web forum written in Racket.
 
 **Work in progress! Breakage guaranteed!**
 
-My intention is to make a simple hybrid of HN/Lobsters and Feedly/Google Reader and DropBox/WeTransfer.
-
-## Design goals
-
-- minimal.
-- fast.
-- no js frameworks. no js. not even a semicolon of it.
-- use SQL as much as possible.
-- no configuration needed.
-- easy backup. *all* state goes in the sqlite database, including file uploads.
-- avoid PLOP when possible and convenient.
+My goal is to make a simple hybrid of HN/Lobsters and Feedly/Google Reader and DropBox/WeTransfer/Google Drive/OneDrive.
 
 ## How to run
 
-- install [**Racket**](https://racket-lang.org)
-- `./debate`
+- install [**Racket**](https://racket-lang.org) version >= 7.0
+- run `./debate`
+
+## Design goals
+
+- minimal
+- fast
+- no js
+- no images in frontpage
+- zero-config install
+- easy backup (all state in one file)
+- as much SQL as possible
+- avoid PLOP when possible and convenient
+
+## TODO
+
+- editing
+- deletion
+- pagination
+- proper ranking algorithm
+- feeds (should appear as normal items)
+- tags
+- search
+- user profiles
+- limit login tries
+- prevent CSRF
+- unvoting
+- upload expiriy
+- password recovery
 
 ## Ideas and resources
 

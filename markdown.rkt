@@ -16,6 +16,9 @@
 ; (set! text (regexp-replace* #px"^#{3}(.+)$" text "<h3>\\1</h3>"))
 ; (set! text (regexp-replace* #px"^#{2}(.+)$" text "<h2>\\1</h2>"))
 ; (set! text (regexp-replace* #px"^#{1}(.+)$" text "<h1>\\1</h1>"))
-  (set! text (regexp-replace* #px"(\r\n)+" text "<br/><br/>"))
+;  (set! text (regexp-replace* #px"(\r\n)+" text "<br/><br/>"))
+  ;links:
+  (set! text (regexp-replace* #px"@(\\w)*" text "<a href=\"user\">\\1</a>"))
+  (set! text (regexp-replace* #px"#(\\w)*" text "<a href=\"tag\">\\1</a>"))
   (~a "<p>" text "</p>"))
 

@@ -6,10 +6,9 @@ body {
   max-width: 90vw;
   min-width: 20em;
   font-size: smaller;
-}
-
-foo {
-  color: hsl(201, 75%, 66%);
+  /* prevent page shifting */
+  overflow-y: scroll;
+  background: hsl(0, 0%, 95%);
 }
 
 .votable {
@@ -37,6 +36,8 @@ img {
 .warning {
   color:red;
   text-align: center;
+  padding: 0.5em;
+  text-decoration: underline;
 }
 
 .votelinks {
@@ -81,7 +82,7 @@ a:link, a:visited {
 }
 
 .title:link {
-  color: rgb(50,50,220);
+  color: rgb(0,0,0);
   text-decoration: none;
 }
 
@@ -90,6 +91,9 @@ a:link, a:visited {
   text-decoration: none;
 }
 
+.domain {
+  font-size: smaller;
+}
 
 .embed {
   height: 33.3%;
@@ -127,8 +131,8 @@ a:link, a:visited {
 }
 
 ::selection {
-  color: black;
-  background: yellow;
+  color: white;
+  background: black;
 }
 
 textarea {
@@ -150,6 +154,7 @@ textarea {
 .items > li {
   list-style-type: none;
   margin-left: 1em;
+  word-break: break-all;
 }
 
 .footer {

@@ -8,6 +8,7 @@
 
 (define menu-items
   '("top" "newest" "comments" "submit" "uploads"))
+;  '("top" "newest" "comments" "submit" "uploads" "feeds" "messages" "search"))
 
 (define (menu items (user null))
   `(div ((class "menu"))
@@ -28,7 +29,8 @@
        (link ((rel "stylesheet") (href "/minimalist.css")))
        )
      (body
-       (div ((class "warning")) "WARNING: UNDER ACTIVE DEVELOPMENT. EXPECT ERRORS AND DATA LOSS.")
+       (div ((class "warning"))
+            "ALPHA TESTING. EXPECT ERRORS AND DATA LOSS.")
        (title ,title)
        ,(menu menu-items user)
        (div ((class "message")) ,message)

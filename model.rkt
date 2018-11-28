@@ -1,13 +1,8 @@
 #lang racket
 
-(require db openssl/sha1)
+(require db openssl/sha1 racket/random)
 
 (provide (all-defined-out))
-
-; TODO : do some kind of ORM or some structs to return some sane Racket objects;
-; and to do less queries!
-; it will give a simpler interface, too, if the entire item with all useful info is returned
-; but it *does* need more fields than in the table to account for derived data, e.g. votes, etc
 
 (define (sqlite3-init file)
   (if (file-exists? file)
@@ -15,12 +10,12 @@
       (let ((new-db (sqlite3-connect #:database file #:mode 'create)))
        (map ((curry query-exec) new-db)
             ; TABLES
-            '("create table site (
-                 name      TEXT,
-                 link      TEXT)"
+            '("create table meta (
+                 key       TEXT,
+                 value     TEXT)"
 
               "create table users (
-                 user      TEXT,
+                 user      TEXT PRIMARY KEY,
                  email     TEXT,
                  pwhash    BLOB,
                  created   INTEGER)"
@@ -49,6 +44,12 @@
                  content   BLOB,
                  time      INTEGER)"
 
+              "create table messages (
+                 sender    TEXT,
+                 receiver  TEXT,
+                 content   TEXT,
+                 time      INTEGER)"
+
               ; VIEWS
               "create view stories as
                  select * from items
@@ -61,9 +62,11 @@
 
               "create view scores as
                 select item,
-                       count(case direction when 'up' then 1 else null end) -
-                         count(case direction when 'down' then 1 else null end)
-                  as score from votes
+                       coalesce(
+                         count(case direction when 'up' then 1 else null end) -
+                           count(case direction when 'down' then 1 else null end),
+                         0)
+                  as score from items left join votes using (item)
                   group by item"
 
               "create view newest as
@@ -71,9 +74,16 @@
                  order by created desc"
 
               "create view top as
-                 select * from stories join scores using (item)
-                 group by item having score > 0
-                 order by score desc, created desc"
+                 select * from stories join ranks using (item)
+                 group by item having rank >= 0.1
+                 order by rank desc, created desc"
+
+              ; TODO: make "ages" view
+              ; TODO: SQLite is probably not suitable for impelmenting ranking algorithm
+              "create view ranks as
+                 select item,
+                 (score / (julianday('now') - julianday(created,'unixepoch'))) as rank
+                 from items join scores using(item)"
 
               "create view karmas as
                  select user,coalesce(sum(score),0) as karma
@@ -82,6 +92,41 @@
                  left join scores using (item)
                  group by user
                  order by score desc"
+
+              ; first user is automagically admin,
+              ; and should be able to invite others to be too
+              "create view owner as
+                 select user from users
+                 order by created asc
+                 limit 1"
+
+              "create view roots as
+                 with roots as (
+                   select item, parent, item as root
+                   from items
+                   where parent is null
+                   union all
+                   select items.item, items.parent, root
+                     from roots
+                     join items
+                     on items.parent = roots.item)
+                 select item, root from roots"
+
+              "create view descendants as
+                 with descendants as(
+                   select item, parent, item as root
+                   from items
+                   union all
+                   select items.item, items.parent, root
+                     from descendants
+                     join items
+                     on descendants.item = items.parent)
+                 select root as item,
+                        descendants.item as descendant
+                   from descendants
+                   where root != descendants.item
+                   order by root, descendants.item"
+
               ; TODO descendants
               ; TODO children
               ; TODO add NOT NULL constraints
@@ -90,81 +135,101 @@
 
 (define dbc (sqlite3-init "db.sqlite"))
 
-;TODO: when-exists? or something like that
-; like a macro, to display xexpr when domsehting is present
-(define (blank? field)
-  (or (not field)
-      (null? field)
-      (sql-null? field)))
-
+; TODO: sha256-bytes available in Racket 7.1
 (define (create-user! user pw (email sql-null))
-  ; PREVENT DUPLICATES. user is primary key?
   (query-exec dbc
     "insert into users values (?, ?, ?, ?)"
-    user email (sha1-bytes (open-input-bytes pw)) (current-seconds)))
+    user (false->sql-null email)
+    (sha1-bytes (open-input-bytes pw))
+    (current-seconds)))
 
-(define (create-item! user
-                   #:parent (parent sql-null)
-                   #:title  (title  sql-null)
-                   #:text   (text   sql-null)
-                   #:url    (url    sql-null)
-                   #:tags   (tags   sql-null))
+(define (create-item! user parent title text url tags)
   (let ((item
           (cdr (assq 'insert-id (simple-result-info (query dbc
             "insert into items values (?, ?, ?, ?, ?, ?, ?, ?)"
-            sql-null user parent title text url tags (current-seconds)))))))
+            sql-null user (false->sql-null parent)
+            (false->sql-null title) text (false->sql-null url)
+            (false->sql-null tags) (current-seconds)))))))
   ; TODO users shouldn't be able to vote for their own and gain karma
-       (create-vote! user item "up")
+;       (create-vote! user item "up")
        item))
 
 (define (create-upload! user filename type content)
   (query-exec dbc
     "insert into uploads values (?, ?, ?, ?, ?, ?)"
-    sql-null user filename type content (current-seconds)))
+    sql-null (if user user sql-null) filename type content (current-seconds)))
 
 (define (sitename)
-  (let ((name (query-maybe-value dbc "select name from site limit 1")))
+  (let ((name
+   (query-maybe-value dbc "select value from meta where key='sitename' limit 1")))
    (if name name "My Forum")))
 
 (define (sitelink)
   (query-maybe-value dbc
-    "select link from site limit 1"))
+    "select value from meta where key='sitelink' limit 1"))
 
-(define (configure-site! name link)
+(define (set-sitelink! url)
   (query-exec dbc
-    "insert into site values (?, ?)" name link))
+    "insert into meta values ('sitelink', ?)" url))
+
+(define (set-sitename! name)
+  (query-exec dbc
+    "insert into meta values ('sitename', ?)" name))
+
+(define (salt)
+  ;TODO ensure this is not randomly overwritten as it's quite important
+  (let ((s (query-maybe-value dbc
+              "select value from meta where key='salt' limit 1")))
+       (if s s
+           (begin
+             (query-exec dbc
+                "insert into meta values ('salt', ?)" (crypto-random-bytes 16))
+             (salt)))))
 
 (define (item column item)
-  (let
-   ((result
+  (sql-null->false
      (query-maybe-value dbc
         (format "select ~a from items where item = ?" column) item)))
-   (if (sql-null? result) null result)))
 (define author ((curry item) 'user))
 (define created ((curry item) 'created))
 (define text ((curry item) 'text))
 (define title ((curry item) 'title))
-
-(define (items) (query-list dbc "select item from items"))
-
 (define parent ((curry item) 'parent))
+(define url/item ((curry item) 'url))
+
+(define (rows->hashes rows)
+  ; is this better than having lots of individual functions?
+  ; is this an ORM?
+  ; it's quite possibly faster than querying multiple times
+  (map (λ (row)
+          (make-hash
+            (map cons
+                 (map cdar (rows-result-headers rows))
+                 (vector->list row))))
+       (rows-result-rows rows)))
+
+;(define (item2 id)
+;  (first (rows->hashes (query dbc "select * from items where item = ?" id))))
+;
+;(hash-ref (item2 3) "created")
+
 (define (children item)
  (query-list dbc
    "select item from items where parent = ? order by created desc" item))
 
 (define (uploads)
-  (rows-result-rows (query dbc "select upload,filename from uploads")))
+  (rows-result-rows
+    (query dbc "select upload, filename from uploads")))
 
 (define (download id)
-  (first (rows-result-rows (query dbc "select type,content from uploads where upload=?" id))))
+  (first (rows-result-rows
+    (query dbc "select type, content from uploads where upload=?" id))))
 
 (define (root item)
-  (let ((p (parent item)))
-   (if (not (empty? p))
-       (root p)
-       item)))
+ (query-value dbc
+   "select root from roots where item = ?" item))
 
-(define (user? user)
+(define (existing-user? user)
   (query-maybe-value dbc
     "select user from users where user = ?" (~a user)))
 
@@ -185,14 +250,8 @@
    "select karma from karmas where user=?" user))
 
 (define (descendants item)
-  ; recursive query. is this too ugly?
  (query-list dbc
-   "with descendants(n) as (values(?)
-    union select item from items,descendants
-    where items.parent=descendants.n)
-   select item from items
-   where items.item in descendants and not items.item = ?"
-   item item))
+   "select descendant from descendants where item = ?" item))
 
 (define (search terms)
   ;TODO
@@ -223,13 +282,13 @@
 
 (define (score item)
   (query-value dbc
-    "select coalesce((select score from scores where item=?),0)"
+    "select score from scores where item=?"
     item))
 
 (define (rank item)
   'todo)
 
-(define (user-votes user)
+(define (votes user)
   (query-list dbc
     "select user from votes where user=?"
     user))

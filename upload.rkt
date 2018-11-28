@@ -25,13 +25,12 @@
               ((binding:file field filename headers content)
                (let ((user (get-user (current-request)))
                      (content-type (header-value (headers-assq #"Content-Type" headers))))
-                    (create-upload! user (~a filename) content-type content)))))
+                    (when (> (bytes-length content) 0)
+                          (create-upload! user (~a filename) content-type content))))))
                (request-bindings/raw (current-request)))
     (redirect-to "/uploads"))
 
   (let ((user (get-user (current-request))))
-    (if (not user)
-        (redirect-to "/login")
         (send/suspend/dispatch
           (λ (embed-url)
              (response/xexpr
@@ -49,7 +48,7 @@
                                        (type   "submit")
                                        (value  "Upload")))))
                  `(ul ,@(map (λ (f) `(li ,(download-link f)))
-                             (uploads))))))))))
+                             (uploads)))))))))
 
 
 ; FILES

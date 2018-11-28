@@ -15,16 +15,13 @@
 ; LOGIN
 
 ; racket/random
-; TODO: use (crypto-random-bytes) for salt, and save it in the database
-(define salt (make-secret-salt/file ".salt"))
-
 (define (make-login-cookie username)
-  (make-id-cookie "login" salt (~a username)))
+  (make-id-cookie "login" (salt) (~a username)))
 
 (define (get-user request)
 ;  (request-id-cookie "login" salt request))
-  (let ((user (request-id-cookie "login" salt request)))
-       (if (user? user) user #f)))
+  (let ((user (request-id-cookie "login" (salt) request)))
+       (if (existing-user? user) user #f)))
 
 (define/page (login/page)
 
@@ -36,14 +33,15 @@
          (binding:form #"username" username)
          (binding:form #"password" password)
          (binding:form #"email"    email))
-         (if (not (user? (~a username)))
+         (if (and (not (existing-user? (~a username)))
+                  (regexp-match #px"\\w+" (~a username)))
              (begin
                (create-user! (~a username) password (~a email))
                (redirect-to "/"
                  #:headers (list (cookie->header (make-login-cookie username)))))
              (response/xexpr
                (render-page (get-user (current-request))
-                            "Error" "User already exists."))))))
+                            "Error" "Unable to create user account."))))))
 
   (define/page (login!)
     (match (request-bindings/raw (current-request))
@@ -90,6 +88,7 @@
                      (h3 "Register")
                      (div (input ((class       "field")
                                   (type        "text")
+                                  (pattern     "\\w+")
                                   (required    "required")
                                   (placeholder "username")
                                   (name        "username"))))

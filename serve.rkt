@@ -14,9 +14,11 @@
 
 (define (not-found req)
   (response/xexpr
-    `(html (body (p
-       ((style "text-align: center; font-family: sans; font-size: 140pt; font-weight: bold;"))
-       "404")))
+    `(html (body
+      (title "Not found")
+      (div ((style "text-align: center; font-family: sans; font-size: 100pt; font-weight: bold;"))
+         (div "404")
+         (div (img ((style "width:2em") (class "fail-pet") (src "/noisebob.png")))))))
      #:code 404))
 
 (define (serve)
