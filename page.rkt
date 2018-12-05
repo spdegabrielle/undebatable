@@ -29,8 +29,6 @@
        (link ((rel "stylesheet") (href "/minimalist.css")))
        )
      (body
-       (div ((class "warning"))
-            "ALPHA TESTING. EXPECT ERRORS AND DATA LOSS.")
        (title ,title)
        ,(menu menu-items user)
        (div ((class "message")) ,message)

@@ -1,11 +1,10 @@
 body {
-  font-family: sans, overpass;
+  font-family: arial, sans, overpass;
   margin-left: auto;
   margin-right: auto;
   width: 65em;
   max-width: 90vw;
   min-width: 20em;
-  font-size: smaller;
   /* prevent page shifting */
   overflow-y: scroll;
   background: hsl(0, 0%, 95%);
@@ -23,6 +22,11 @@ body {
 
 .itemline {
   font-size: smaller;
+}
+
+.unseen:link, .unseen:visited {
+  font-weight: bold;
+  color: red!important;
 }
 
 .title, .sitename {

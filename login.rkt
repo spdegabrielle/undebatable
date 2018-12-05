@@ -5,28 +5,30 @@
   "page.rkt"
   web-server/servlet
   web-server/page
-  web-server/http/id-cookie
+  web-server/http/cookie
   net/smtp
   net/head
   openssl)
 
 (provide (all-defined-out))
 
+; TODO: Secure cookies and add CSFR hidden form fields on all POST requests
+; https://www.owasp.org/index.php/Cross-Site_Request_Forgery_%28CSRF%29_Prevention_Cheat_Sheet
+; and make all state-changing requests use POST, e.g. logout
+; 
 ; LOGIN
 
-; racket/random
-(define (make-login-cookie username)
-  (make-id-cookie "login" (salt) (~a username)))
-
 (define (get-user request)
-;  (request-id-cookie "login" salt request))
-  (let ((user (request-id-cookie "login" (salt) request)))
-       (if (existing-user? user) user #f)))
+  (cookie->user
+    (cond
+      ((findf
+         (λ (maybe-cookie) (string=? (client-cookie-name maybe-cookie) "login"))
+         (request-cookies request)) => client-cookie-value)
+      (else #f))))
 
 (define/page (login/page)
 
   (define/page (register!)
-    ; TODO: what about '#' or '?' in usernames? it would break links
     (match
       (request-bindings/raw (current-request))
       ((list-no-order
@@ -35,10 +37,12 @@
          (binding:form #"email"    email))
          (if (and (not (existing-user? (~a username)))
                   (regexp-match #px"\\w+" (~a username)))
-             (begin
-               (create-user! (~a username) password (~a email))
-               (redirect-to "/"
-                 #:headers (list (cookie->header (make-login-cookie username)))))
+             (let ((login (create-user! (~a username) password (~a email))))
+                   (redirect-to "/"
+                                ; the made cookie needs to be secure and prevent CSRF
+                                ; file:///usr/share/doc/racket/cookies/index.html
+                                ; Set-Cookie: JSESSIONID=xxxxx; SameSite=Strict
+                     #:headers (list (cookie->header (make-cookie "login" login)))))
              (response/xexpr
                (render-page (get-user (current-request))
                             "Error" "Unable to create user account."))))))
@@ -48,12 +52,12 @@
            ((list-no-order
                (binding:form #"username" username)
                (binding:form #"password" password))
-           (if (good-login? (~a username) password)
-               (redirect-to "/"
-                 #:headers (list (cookie->header (make-login-cookie username))))
-               (response/xexpr
-                 ; TODO: should just be shown as a message
-                 (render-page (get-user (current-request)) "Error" "Login failed."))))))
+           (let ((login (create-login! (~a username) password)))
+                (if login
+                    (redirect-to "/"
+                      #:headers (list (cookie->header (make-cookie "login" login))))
+                    (response/xexpr
+                      (render-page (get-user (current-request)) "Error" "Login failed.")))))))
 
   (let ((user (get-user (current-request))))
     (if user
@@ -110,9 +114,7 @@
 
 (define/page (logout/page)
   (redirect-to "/"
-    #:headers (list (cookie->header (logout-id-cookie "login")))))
-
-
+    #:headers (list (cookie->header (make-cookie "login" "")))))
 
 ;; PASSWORD RECOVERY
 

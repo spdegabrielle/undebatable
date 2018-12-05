@@ -43,6 +43,7 @@
                          (span (input ((class       "field")
                                        (type        "file")
                                        (name        "file")
+                                       (required    "required")
                                        (multiple    "multiple"))))
                          (span (input ((class  "button")
                                        (type   "submit")

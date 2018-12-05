@@ -10,14 +10,14 @@
 
 ; use different arrow chars for enabled/disabled/applied
 
-(define (votelink item (direction "up") (user null) (then null))
+(define (votelink item (direction 1) (user null) (then null))
   `(div (form ((method "post") (action "/vote"))
      (input ((type "hidden") (name "item") (value ,(~a item))))
      (input ((type "hidden") (name "direction") (value ,(~a direction))))
      (input ((type "hidden") (name "then") (value ,(~a then))))
      (input (,(if (not (votable? user item)) '(disabled "disabled") '(foo "bar"))
              (class "arrow") (type "submit")
-             (value ,(~a (if (equal? direction "up") "▲" "▼"))))))))
+             (value ,(~a (if (equal? direction 1) "▲" "▼"))))))))
 
 (define (votable? user item)
   (and (existing-user? user)
@@ -25,9 +25,9 @@
 
 (define (votelinks item (user null) (then null))
       `(span ((class "votelinks"))
-             ,(votelink item "up" user then)
+             ,(votelink item 1 user then)
              (div ,(~a (score item)))
-             ,(votelink item "down" user then) ""))
+             ,(votelink item -1 user then) ""))
 
 (define/page (vote/page)
              ; TODO just redirect to whence

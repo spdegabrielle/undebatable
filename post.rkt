@@ -40,6 +40,10 @@
                (render-page
                  user
                  "New item"
+                 ; TODO: add cookie value to form and check that it matches the cookie on server side
+                 ; to protect against CSRF
+;                         (input ((type "hidden")
+;                                 (name "auth")))
                  `(form ((action ,(embed-url process-item))
                          (method "post"))
                          (div (input    ((class       "field")
@@ -94,8 +98,11 @@
 (define (author-link item)
   `(span " by " (a ((href ,(~a "/user/" (author item)))) ,(author item))))
 
-(define (created-link item)
-  `(span " | " (a ((href ,(~a "/item/" item))) ,(age (created item)))))
+(define (created-link user item)
+  `(span " | "
+     (a ((href ,(~a "/item/" item))
+         (class ,(if (seen? user item) "seen" (begin (seen! user item) "unseen"))))
+        ,(age (created item)))))
 
 (define (comments-link item)
   `(span " | " (a ((href ,(~a "/item/" item)))
@@ -118,10 +125,10 @@
 (define (delete-link item)
   'todo)
 
-(define (itemline item)
+(define (itemline user item)
   `(span ((class "itemline"))
          ,(author-link item)
-         ,(created-link item)
+         ,(created-link user item)
          ,(if (= item (root item))
               (comments-link item) "")
          ,(if (parent item)
@@ -168,8 +175,8 @@
            ,(votelinks item user here)
            (div ((class "item"))
              ,(titleline item)
-             ,(itemline item)
-             ,(if text? `(div ,(string->xexpr (markdown (xml-attribute-encode (text item))))) "")))
+             ,(itemline user item)
+             ,(if text? `(div ,(markdown->xexpr (text item))) "")))
        (div ((class "children"))
             ,(if children? `(ul ((class "items"))
                                 ,@(map (curry render-item/tree user here) (children item))) ""))))

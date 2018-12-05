@@ -1,6 +1,6 @@
 #lang racket
 
-(require db openssl/sha1 racket/random)
+(require db openssl/sha1 file/md5 racket/random)
 
 (provide (all-defined-out))
 
@@ -18,6 +18,7 @@
                  user      TEXT PRIMARY KEY,
                  email     TEXT,
                  pwhash    BLOB,
+                 salt      BLOB,
                  created   INTEGER)"
 
               "create table items (
@@ -33,7 +34,7 @@
               "create table votes (
                  user      TEXT,
                  item      INTEGER,
-                 direction TEXT,
+                 direction INTEGER,
                  time      INTEGER)"
 
               "create table uploads (
@@ -44,11 +45,14 @@
                  content   BLOB,
                  time      INTEGER)"
 
-              "create table messages (
-                 sender    TEXT,
-                 receiver  TEXT,
-                 content   TEXT,
-                 time      INTEGER)"
+              "create table logins (
+                 user TEXT,
+                 auth BLOB PRIMARY KEY,
+                 time INTEGER)"
+
+              "create table seen (
+                 user TEXT,
+                 item INTEGER)"
 
               ; VIEWS
               "create view stories as
@@ -61,36 +65,38 @@
                  order by created desc"
 
               "create view scores as
-                select item,
-                       coalesce(
-                         count(case direction when 'up' then 1 else null end) -
-                           count(case direction when 'down' then 1 else null end),
-                         0)
-                  as score from items left join votes using (item)
-                  group by item"
+                 select items.item as item,
+                        sum(direction)
+                        as score from items
+                 left join votes on votes.item = items.item
+                 group by items.item"
 
               "create view newest as
-                 select * from stories
+                 select item from stories
                  order by created desc"
 
               "create view top as
-                 select * from stories join ranks using (item)
-                 group by item having rank >= 0.1
+                 select stories.item as item from stories
+                 join ranks on stories.item = ranks.item
+                 group by stories.item
+                 having rank >= 0
                  order by rank desc, created desc"
 
               ; TODO: make "ages" view
               ; TODO: SQLite is probably not suitable for impelmenting ranking algorithm
               "create view ranks as
-                 select item,
+                 select items.item as item,
                  (score / (julianday('now') - julianday(created,'unixepoch'))) as rank
-                 from items join scores using(item)"
+                 from items
+                 join scores on items.item = scores.item"
 
               "create view karmas as
-                 select user,coalesce(sum(score),0) as karma
+                 select users.user as user,
+                 coalesce(sum(score), 0) as karma
                  from users
-                 left join items using (user)
-                 left join scores using (item)
-                 group by user
+                 left join items on users.user = items.user
+                 left join scores on items.item = scores.item
+                 group by users.user
                  order by score desc"
 
               ; first user is automagically admin,
@@ -137,11 +143,19 @@
 
 ; TODO: sha256-bytes available in Racket 7.1
 (define (create-user! user pw (email sql-null))
-  (query-exec dbc
-    "insert into users values (?, ?, ?, ?)"
-    user (false->sql-null email)
-    (sha1-bytes (open-input-bytes pw))
-    (current-seconds)))
+  (let ((salt (crypto-random-bytes 16)))
+    (query-exec dbc
+      "insert into users values (?, ?, ?, ?, ?)"
+      user (false->sql-null email)
+      (sha1-bytes (open-input-bytes (bytes-append pw salt)))
+      salt
+      (current-seconds)))
+  (create-login! user pw))
+
+(define (cookie->user auth)
+  (sql-null->false
+    (query-maybe-value dbc
+      "select user from logins where auth = ?" (false->sql-null auth))))
 
 (define (create-item! user parent title text url tags)
   (let ((item
@@ -150,8 +164,7 @@
             sql-null user (false->sql-null parent)
             (false->sql-null title) text (false->sql-null url)
             (false->sql-null tags) (current-seconds)))))))
-  ; TODO users shouldn't be able to vote for their own and gain karma
-;       (create-vote! user item "up")
+       (create-vote! user item 0)
        item))
 
 (define (create-upload! user filename type content)
@@ -176,15 +189,24 @@
   (query-exec dbc
     "insert into meta values ('sitename', ?)" name))
 
-(define (salt)
-  ;TODO ensure this is not randomly overwritten as it's quite important
-  (let ((s (query-maybe-value dbc
-              "select value from meta where key='salt' limit 1")))
-       (if s s
-           (begin
-             (query-exec dbc
-                "insert into meta values ('salt', ?)" (crypto-random-bytes 16))
-             (salt)))))
+; TODO: pw recovery email details should go in 'meta' as well
+
+(define (salt user)
+  (query-value dbc
+    "select salt from users where user = ?" user))
+
+(define (seen! user item)
+  (when user
+    (query-exec dbc
+      "insert into seen values (?, ?)" user item)))
+
+(define (seen? user item)
+  ; TODO: only stories created after user should be highlighted
+  (if user
+      (sql-null->false
+        (query-maybe-value dbc
+          "select item from seen where user = ? and item = ?" user item))
+      #t))
 
 (define (item column item)
   (sql-null->false
@@ -231,7 +253,7 @@
 
 (define (existing-user? user)
   (query-maybe-value dbc
-    "select user from users where user = ?" (~a user)))
+    "select user from users where user = ?" (false->sql-null  user)))
 
 (define (newest)
  (query-list dbc
@@ -259,13 +281,28 @@
   (query-list dbc
     "SELECT count(*) FROM enrondata1 WHERE content MATCH 'linux';"))
 
-;TODO: put all cookies in the model and in the database
 (define (good-login? user pw)
   (cond
     ((query-maybe-value dbc
       "select pwhash from users where user = ?" user)
-     => (λ (it) (bytes=? (sha1-bytes (open-input-bytes pw)) it)))
+     => (λ (it) (bytes=?
+                    (sha1-bytes (open-input-bytes (bytes-append  pw (salt user))))
+                     it)))
     (else #f)))
+
+(define (create-login! user pw)
+  (if (and (existing-user? user)
+           (bytes=?
+             (query-value dbc
+               "select pwhash from users where user = ?" user)
+             (sha1-bytes (open-input-bytes (bytes-append pw (salt user))))))
+      ; TODO: must ensure that auths are unique
+      (let ((auth (~a (md5 (crypto-random-bytes 16)))))
+           (query-exec dbc
+              "insert into logins values (?, ?, ?)"
+              user auth (current-seconds))
+           auth)
+      #f))
 
 (define (delete-vote! user item direction)
   'todo)
@@ -274,6 +311,7 @@
   (query-exec dbc
     "insert into votes values (?, ?, ?, ?)"
     user item direction (current-seconds)))
+
 
 (define (voted user item)
   (query-list dbc
