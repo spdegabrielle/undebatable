@@ -58,6 +58,8 @@
      vote/page)
     (("reply" (integer-arg))
      reply/page)
+    (("edit" (integer-arg))
+     edit/page)
     (("uploads")
      uploads/page)
     (("uploads" (integer-arg) (string-arg))

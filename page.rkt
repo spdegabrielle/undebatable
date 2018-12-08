@@ -8,7 +8,7 @@
 
 (define menu-items
   '("top" "newest" "comments" "submit" "uploads"))
-;  '("top" "newest" "comments" "submit" "uploads" "feeds" "messages" "search"))
+;  '("top" "newest" "comments" "submit" "uploads" "feeds" "market" "messages" "search"))
 
 (define (menu items (user null))
   `(div ((class "menu"))
@@ -34,5 +34,5 @@
        (div ((class "message")) ,message)
        ,@content
 ;       (div ,search-bar)
-       (div ((class "footer")) "© 2018 Pelle Hjek")
+       (div ((class "footer")) (a ((href "https://notabug.org/hjek/debate"))"AGPLv3+ © 2018 Pelle Hjek"))
      )))

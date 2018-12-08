@@ -19,10 +19,6 @@
              (class "arrow") (type "submit")
              (value ,(~a (if (equal? direction 1) "▲" "▼"))))))))
 
-(define (votable? user item)
-  (and (existing-user? user)
-       (empty? (voted user item))))
-
 (define (votelinks item (user null) (then null))
       `(span ((class "votelinks"))
              ,(votelink item 1 user then)

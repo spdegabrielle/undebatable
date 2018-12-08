@@ -1,10 +1,17 @@
 ## Ideas and resources
 
+### User styles that are sharable
+
+- like myspace
+- but just plain CSS you add in there
+- has to be optional, otherwise may crash other people's browsers
+
 ### Ranking
 * http://www.evanmiller.org/how-not-to-sort-by-average-rating.html
 * https://medium.com/hacking-and-gonzo/how-hacker-news-ranking-algorithm-works-1d9b0cf2c08d
 * https://medium.com/hacking-and-gonzo/how-reddit-ranking-algorithms-work-ef111e33d0d9
 * https://redditblog.com/2009/10/15/reddits-new-comment-sorting-system/
+* trending domains: https://hntrending.com/domains/year/index.html
 
 ### Other
 * make things separateable by tabs, so allow for niche communities

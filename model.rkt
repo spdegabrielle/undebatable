@@ -83,7 +83,7 @@
                  order by rank desc, created desc"
 
               ; TODO: make "ages" view
-              ; TODO: SQLite is probably not suitable for impelmenting ranking algorithm
+              ; TODO: ranking needsto be a table, because the algorithm is to complex for SQLite
               "create view ranks as
                  select items.item as item,
                  (score / (julianday('now') - julianday(created,'unixepoch'))) as rank
@@ -167,6 +167,23 @@
        (create-vote! user item 0)
        item))
 
+(define (edit-item! item user parent title text url tags)
+    (query-exec dbc
+            "update items
+             set
+               title = ?,
+               url = ?,
+               text = ?,
+               tags = ?
+             where
+               item = ?"
+            (false->sql-null title)
+            (false->sql-null url)
+            (false->sql-null text)
+            (false->sql-null tags)
+            (false->sql-null (string->number (~a item))))
+       item)
+
 (define (create-upload! user filename type content)
   (query-exec dbc
     "insert into uploads values (?, ?, ?, ?, ?, ?)"
@@ -175,7 +192,7 @@
 (define (sitename)
   (let ((name
    (query-maybe-value dbc "select value from meta where key='sitename' limit 1")))
-   (if name name "My Forum")))
+   (if name name "Undebatable")))
 
 (define (sitelink)
   (query-maybe-value dbc
@@ -202,6 +219,7 @@
 
 (define (seen? user item)
   ; TODO: only stories created after user should be highlighted
+  ; and not the users own stories, obvs
   (if user
       (sql-null->false
         (query-maybe-value dbc
@@ -218,22 +236,6 @@
 (define title ((curry item) 'title))
 (define parent ((curry item) 'parent))
 (define url/item ((curry item) 'url))
-
-(define (rows->hashes rows)
-  ; is this better than having lots of individual functions?
-  ; is this an ORM?
-  ; it's quite possibly faster than querying multiple times
-  (map (λ (row)
-          (make-hash
-            (map cons
-                 (map cdar (rows-result-headers rows))
-                 (vector->list row))))
-       (rows-result-rows rows)))
-
-;(define (item2 id)
-;  (first (rows->hashes (query dbc "select * from items where item = ?" id))))
-;
-;(hash-ref (item2 3) "created")
 
 (define (children item)
  (query-list dbc
@@ -308,23 +310,24 @@
   'todo)
 
 (define (create-vote! user item direction)
-  (query-exec dbc
-    "insert into votes values (?, ?, ?, ?)"
-    user item direction (current-seconds)))
-
+  (when (votable? user item direction)
+    (query-exec dbc
+      "insert into votes values (?, ?, ?, ?)"
+      user item direction (current-seconds))))
 
 (define (voted user item)
   (query-list dbc
     "select user from votes where user=? and item=?"
     user item))
 
+(define (votable? user item (direction 1))
+  (and (existing-user? user)
+       (empty? (voted user item))))
+
 (define (score item)
   (query-value dbc
     "select score from scores where item=?"
     item))
-
-(define (rank item)
-  'todo)
 
 (define (votes user)
   (query-list dbc

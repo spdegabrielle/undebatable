@@ -7,7 +7,15 @@ body {
   min-width: 20em;
   /* prevent page shifting */
   overflow-y: scroll;
-  background: hsl(0, 0%, 95%);
+}
+
+body {
+    background-image: url("antisocial.png");
+    background-repeat: no-repeat;
+    background-position-x: 84vw;
+    background-position-y: 95vh;
+    background-size: 15vw 5vh;
+    background-attachment: fixed;
 }
 
 .votable {
@@ -22,6 +30,12 @@ body {
 
 .itemline {
   font-size: smaller;
+}
+
+.itemline span {
+  padding-right: 0.5em;
+  margin-right: 0.5em;
+  border-right: 1px solid black;
 }
 
 .unseen:link, .unseen:visited {
@@ -117,7 +131,7 @@ a:link, a:visited {
 .button {
   width: auto;
   cursor: pointer;
-  background-image: linear-gradient(rgb(60,200,60), rgb(30,160,30));
+  background: black;
   font-weight: bold;
   color: white;
 }
@@ -175,4 +189,19 @@ blockquote {
   border-left: 0.3em solid lightgray;
   padding-left: 1em;
   margin: 0;
+}
+
+.doc-head {
+  display: block;
+}
+
+.doc-head:hover + .doc-body {
+  display: block;
+}
+
+.doc-body {
+  display: none;
+  position: fixed;
+  background: white;
+  border: 1px solid black;
 }

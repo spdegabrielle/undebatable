@@ -10,18 +10,18 @@ A web forum written in Racket.
 ## Design goals
 My goal is to make a simple hybrid of HN/Lobsters and Feedly/Google Reader and DropBox/WeTransfer/Google Drive/OneDrive.
 
-- minimal
-- fast
-- no js
-- no images in frontpage
+- graceful degredation (work fine w/o js)
+- simple, light, minimal, fast
 - zero-config install
 - easy backup (all state in one file)
 - as much SQL as possible
-- avoid PLOP when possible and convenient
+- no state change through GET requests
+- avoid PLOP when possible and convenient (Note: SQL is rather PLOP)
 
 ## TODO
-- editing
+- anti-anti-social-media top buttons
 - deletion
+- user styles
 - pagination
 - proper ranking algorithm
 - feeds (should appear as normal items)
@@ -33,4 +33,6 @@ My goal is to make a simple hybrid of HN/Lobsters and Feedly/Google Reader and D
 - unvoting
 - upload expiriy
 - password recovery
-
+- GDPR
+  * download user data in machine readable format
+  * "forget me" / profile deletion
