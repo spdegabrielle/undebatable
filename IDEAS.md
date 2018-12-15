@@ -1,5 +1,7 @@
 ## Ideas and resources
 
+- [SLC](https://blog.asmartbear.com/slc.html)
+
 ### User styles that are sharable
 
 - like myspace
@@ -19,7 +21,7 @@
 * check referrer to prevent CSRF attacks (or add an autho token). See "this post upvotes itself":
 Set-Cookie: JSESSIONID=xxxxx; SameSite=Strict
 https://www.owasp.org/index.php/Cross-Site_Request_Forgery_%28CSRF%29_Prevention_Cheat_Sheet
-httphttps://www.owasp.org/index.php/Cross-Site_Request_Forgery_%28CSRF%29_Prevention_Cheat_Sheets://www.owasp.org/index.php/Cross-Site_Request_Forgery_(CSRF)
+https://www.owasp.org/index.php/Cross-Site_Request_Forgery_%28CSRF%29_Prevention_Cheat_Sheets://www.owasp.org/index.php/Cross-Site_Request_Forgery_(CSRF)
 * check if referrer is from facebook or google, and if so, tell people about issues. same with chrome or internet explorer, etc.
 * login-less file upload / anonymous, with file expiry based on user/item score and size of file. small files should be kept indefinitely.
 * [Google Reader](http://googlereader.blogspot.com/2008/12/square-is-new-round.html)

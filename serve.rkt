@@ -6,6 +6,7 @@
   "upload.rkt"
   "user.rkt"
   "vote.rkt"
+  "bazar.rkt"
   web-server/servlet
   web-server/servlet-env
   web-server/dispatch)
@@ -37,7 +38,11 @@
      top/page)
     (("top")
      top/page)
+    (("top" (integer-arg))
+     top/page)
     (("newest")
+     newest/page)
+    (("newest" (integer-arg))
      newest/page)
     (("comments")
      comments/page)
@@ -65,4 +70,6 @@
     (("uploads" (integer-arg) (string-arg))
      ; the string arg is just there to make things look pretty
      download/page)
+    (("bazar")
+     bazar/page)
     ))

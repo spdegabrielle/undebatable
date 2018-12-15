@@ -15,9 +15,19 @@
      (input ((type "hidden") (name "item") (value ,(~a item))))
      (input ((type "hidden") (name "direction") (value ,(~a direction))))
      (input ((type "hidden") (name "then") (value ,(~a then))))
-     (input (,(if (not (votable? user item)) '(disabled "disabled") '(foo "bar"))
-             (class "arrow") (type "submit")
-             (value ,(~a (if (equal? direction 1) "▲" "▼"))))))))
+     (input ((class "arrow")
+             (type  "submit")
+             ,@(match
+                 (list direction
+                       (voted user item)
+                       (votable? user item direction))
+                 ((list 1  _  #t) `((value "△")))
+                 ((list 1  1   _) `((value "▲")))
+                 ((list 1  _  #f) `((value "△") (disabled "disabled")))
+                 ((list -1 _  #t) `((value "▽")))
+                 ((list -1 -1  _) `((value "▼")))
+                 ((list -1 _  #f) `((value "▽") (disabled "disabled")))
+                 ))))))
 
 (define (votelinks item (user null) (then null))
       `(span ((class "votelinks"))
@@ -31,8 +41,16 @@
     ((list-no-order (binding:form #"item" item)
                     (binding:form #"direction" direction)
                     (binding:form #"then" then))
-     (begin (~a item)
-            (create-vote! (get-user (current-request))
-                          (string->number (~a item))
-                          (~a direction))
+     (let* ((user      (get-user (current-request)))
+            (item      (string->number (~a item)))
+            (direction (string->number (~a direction))))
+           (if (not (eq? (voted user item) direction))
+              (begin
+                (delete-vote! user
+                              item)
+                (create-vote! user
+                              item
+                              direction))
+              (delete-vote! user
+                            item))
             (redirect-to (~a then))))))

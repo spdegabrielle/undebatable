@@ -1,6 +1,6 @@
 #lang racket
 
-(require "model.rkt")
+(require "model.rkt" "search.rkt")
 
 (provide render-page)
 
@@ -8,17 +8,18 @@
 
 (define menu-items
   '("top" "newest" "comments" "submit" "uploads"))
-;  '("top" "newest" "comments" "submit" "uploads" "feeds" "market" "messages" "search"))
+;  '("top" "newest" "comments" "submit" "uploads" "feeds" "bazar" "messages" "search"))
 
 (define (menu items (user null))
   `(div ((class "menu"))
         (span
 ;          (a ((href "/")) (img ((src "/favicon.ico") (class "logo"))))
-          (span (a ((href "/") (class "sitename")) ,(sitename)) " ")
-          (span ,@(map (λ (i) `(span (a ((href ,(string-append "/" i))) ,i) " ")) items)))
+          (span (a ((href "/") (class "logo") (title ,(sitename))) ,(substring (sitename) 0 1)) " ")
+          (span ,@(map (λ (i) `(span (a ((href ,(string-append "/" i))) ,i) " ")) items))
+          (span ,(search-bar)))
         ,(if (not user)
              `(span (a ((href "/login")) "login") " ")
-             `(span (span (a ((href "/user")) ,(~a user " (" (karma user) ")")) " ")
+             `(span (span (a ((href "/user")) ,(~a user)) " ")
                     (span (a ((href "/logout")) "logout") " ")))))
 
 (define (render-page user title #:message (message "") . content)

@@ -66,7 +66,7 @@
 
               "create view scores as
                  select items.item as item,
-                        sum(direction)
+                        coalesce(sum(direction),0)
                         as score from items
                  left join votes on votes.item = items.item
                  group by items.item"
@@ -164,7 +164,7 @@
             sql-null user (false->sql-null parent)
             (false->sql-null title) text (false->sql-null url)
             (false->sql-null tags) (current-seconds)))))))
-       (create-vote! user item 0)
+;       (create-vote! user item 0)
        item))
 
 (define (edit-item! item user parent title text url tags)
@@ -257,17 +257,23 @@
   (query-maybe-value dbc
     "select user from users where user = ?" (false->sql-null  user)))
 
-(define (newest)
+(define (newest (limit -1) (offset -1))
  (query-list dbc
-   "select item from newest"))
+   "select item from newest
+    limit ? offset ?"
+   limit offset))
 
-(define (comments)
+(define (comments (limit -1) (offset -1))
  (query-list dbc
-   "select item from comments"))
+   "select item from comments
+    limit ? offset ?"
+   limit offset))
 
-(define (top)
+(define (top (limit -1) (offset -1))
  (query-list dbc
-   "select item from top"))
+   "select item from top
+    limit ? offset ?"
+   limit offset))
 
 (define (karma user)
  (query-value dbc
@@ -306,23 +312,27 @@
            auth)
       #f))
 
-(define (delete-vote! user item direction)
-  'todo)
+(define (delete-vote! user item)
+  (query-exec dbc
+    "delete from votes where user = ? and item = ?"
+    user item))
 
 (define (create-vote! user item direction)
   (when (votable? user item direction)
-    (query-exec dbc
-      "insert into votes values (?, ?, ?, ?)"
-      user item direction (current-seconds))))
+      (query-exec dbc
+        "insert into votes values (?, ?, ?, ?)"
+        user item direction (current-seconds))))
 
 (define (voted user item)
-  (query-list dbc
-    "select user from votes where user=? and item=?"
-    user item))
+  (sql-null->false
+    (query-maybe-value dbc
+      "select direction from votes where user=? and item=? limit 1"
+      (false->sql-null user) item)))
 
 (define (votable? user item (direction 1))
   (and (existing-user? user)
-       (empty? (voted user item))))
+       (not (equal? (author item) user))
+       (not (equal? (voted user item) direction))))
 
 (define (score item)
   (query-value dbc

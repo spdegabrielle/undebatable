@@ -36,7 +36,7 @@
          (binding:form #"password" password)
          (binding:form #"email"    email))
          (if (and (not (existing-user? (~a username)))
-                  (regexp-match #px"\\w+" (~a username)))
+                  (regexp-match #px"^\\w{1,20}$" (~a username)))
              (let ((login (create-user! (~a username) password (~a email))))
                    (redirect-to "/"
                                 ; the made cookie needs to be secure and prevent CSRF
@@ -92,7 +92,7 @@
                      (h3 "Register")
                      (div (input ((class       "field")
                                   (type        "text")
-                                  (pattern     "\\w+")
+                                  (pattern     "\\w{1,20}")
                                   (required    "required")
                                   (placeholder "username")
                                   (name        "username"))))

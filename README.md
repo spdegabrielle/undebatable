@@ -7,10 +7,13 @@ A web forum written in Racket.
 - install [**Racket**](https://racket-lang.org) version >= 7.0
 - run `./undebatable`
 
-## Design goals
-My goal is to make a simple hybrid of HN/Lobsters and Feedly/Google Reader and DropBox/WeTransfer/Google Drive/OneDrive.
+## Features
+Many of [HN](https://news.ycombinator.com)'s features and then:
+- [numbered pagination](https://logrocket.com/blog/infinite-scroll/)
+- file sharing
 
-- graceful degredation (work fine w/o js)
+## Design principles
+- graceful degredation (js not required)
 - simple, light, minimal, fast
 - zero-config install
 - easy backup (all state in one file)
@@ -19,14 +22,17 @@ My goal is to make a simple hybrid of HN/Lobsters and Feedly/Google Reader and D
 - avoid PLOP when possible and convenient (Note: SQL is rather PLOP)
 
 ## TODO
-- anti-anti-social-media top buttons
+- better error messages
+- correct redirection after certain actions
+- a general way of listing items. (DRY)
+  * general functions with lots of keyword args that are then curried when specificity is needed. seems like a good idea
 - deletion
 - user styles
-- pagination
 - proper ranking algorithm
 - feeds (should appear as normal items)
 - tags
 - search
+- notification on reply
 - user profiles
 - limit login tries
 - prevent CSRF

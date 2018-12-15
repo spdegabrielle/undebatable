@@ -10,9 +10,6 @@
   web-server/page
   xml)
 
-; TODO refactor render/item completely
-; TODO display order is: TITLE, ITEMLINE, TEXT, (children)
-
 (provide submit/page reply/page newest/page item/page edit/page top/page comments/page)
 
 (define/page (process-item)
@@ -39,6 +36,7 @@
     ; TODO: perhaps it should be possible to change the 'parent' of an item
     (reply/page (current-request) (parent item) item (text item))))
 
+; TODO: compine the submit/reply
 (define/page (submit/page (item #f) (title #f) (url #f) (text #f))
   (let ((user (get-user (current-request))))
     (if (not user)
@@ -61,6 +59,7 @@
                          (div (input    ((class       "field")
                                          (type        "text")
                                          (placeholder "title")
+                                         (required    "required")
                                          (name        "title")
                                          (value       ,(if title title "")))))
                          (div (input    ((class       "field")
@@ -73,11 +72,11 @@
                                          (rows        "5")
                                          (name        "text"))
                                          ,(if text text "")))
+                         ;     ,markdown-doc)
                          (div (input    ((class       "button")
                                          (type        "submit")
-                                         (value       "Submit"))))
-                         (div ,markdown-doc)
-                         ))))))))
+                                         (value       "Submit")))))
+                         )))))))
 
 
 (define/page (reply/page parent (item #f) (text #f))
@@ -101,30 +100,32 @@
                                          (name        "parent")
                                          (value       ,(~a parent)))))
                          (div (textarea ((class       "field")
+                                         (required    "required")
                                          (placeholder "text")
                                          (rows        "5")
                                          (name        "text"))
                                          ,(if text text "")))
+;                              ,markdown-doc)
                          (div (input    ((class       "button")
                                          (type        "submit")
-                                         (value       "Submit"))))
-                         (div ,markdown-doc)
-                         ))))))))
+                                         (value       "Submit")))))
+                         )))))))
 
 (define (plural quantity noun)
   (if (= quantity 1)
       (~a quantity " " noun)
       (~a quantity " " noun "s")))
 
-; bars should perhaps be css?
-; less hacky
 (define (author-link item)
   `(span " by " (a ((href ,(~a "/user/" (author item)))) ,(~a (author item) " "))))
 
 (define (created-link user item)
   `(span
      (a ((href ,(~a "/item/" item))
-         (class ,(if (seen? user item) "seen" (begin (seen! user item) "unseen"))))
+         (class ,(if (seen? user item)
+                     "seen"
+                     (begin (seen! user item)
+                            "unseen"))))
         ,(~a " " (age (created item)) " "))))
 
 (define (comments-link item)
@@ -170,7 +171,7 @@
          ,(parent-link item)
          ,(root-link item)
          ,(edit-link user item)
-         ,(unpublish-link user item)
+;         ,(unpublish-link user item)
          ,(reply-link item)))
 
 (define (age seconds)
@@ -186,7 +187,7 @@
        (not (string=? url ""))))
 
 (define (domain url)
-  (cond ((regexp-match #px"(?<=https?://).*?(?=/|&|$)" url)
+  (cond ((regexp-match #px"(?<=https?://).*?(?=/|&|$|:)" url)
          => first)
         (else "")))
 
@@ -203,7 +204,7 @@
 ; always display the title if it's there
 (define (render-item user here item
                      #:text?     (text? #f)
-                     #:tree? (children? #f))
+                     #:tree?     (children? #f))
     `(li
        (div ((class "votable"))
            ,(votelinks item user here)
@@ -221,23 +222,41 @@
 (define render-item/tree
   (curry render-item #:text? #t #:tree? #t))
 
-(define/page (newest/page)
+(define (list-page label items-fn (page 1) (perpage 5))
+  (let ((user (get-user (current-request))))
+    (time (response/xexpr
+      (render-page
+        user
+        label
+        `(ul ((class "items"))
+              ,@(map (curry render-item user "/")
+                     (items-fn perpage (* page perpage)))
+             (li ,(pagination label page))))))))
+
+;(define newest/page
+;  (curry list-page "newest" newest))
+
+(define/page (newest/page (page 1) (perpage 10))
   (let ((user (get-user (current-request))))
     (time (response/xexpr
       (render-page
         user
         "Newest"
         `(ul ((class "items"))
-              ,@(map (curry render-item user "/") (newest))))))))
+              ,@(map (curry render-item user "/")
+                     (newest perpage (* (- page 1) perpage)))
+             (li ,(pagination "newest" page))))))))
 
-(define/page (top/page)
+(define/page (top/page (page 1) (perpage 10))
   (let ((user (get-user (current-request))))
     (time (response/xexpr
       (render-page
         user
         "Top"
         `(ul ((class "items"))
-             ,@(map (curry render-item user "/") (top))))))))
+             ,@(map (curry render-item user "/")
+                    (top perpage (* (- page 1) perpage)))
+             (li ,(pagination "top" page))))))))
 
 (define/page (comments/page)
   (let ((user (get-user (current-request))))
@@ -246,7 +265,8 @@
         user
         "Comments"
         `(ul ((class "items"))
-             ,@(map (curry render-item/single user "/") (comments))))))))
+             ,@(map (curry render-item/single user "/")
+                    (comments))))))))
 
 (define/page (item/page item)
   (let ((user (get-user (current-request))))
@@ -256,3 +276,11 @@
         "Item"
         `(ul ((class "items"))
              ,(render-item/tree user (~a "/item/" item) item))))))
+
+(define (pagination here page)
+  (when (< page 1) (set! page 1))
+  `(div ,(if (> page 1)
+             `(a ((href ,(~a "/" here "/" (- page 1)))) " < ")
+             "")
+        ,(~a " " page " ")
+        (a ((href ,(~a "/" here "/" (+ page 1)))) " > ")))
