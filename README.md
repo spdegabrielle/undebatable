@@ -5,7 +5,7 @@ A web forum written in Racket.
 
 ## How to run
 - install [**Racket**](https://racket-lang.org) version >= 7.0
-- run `./undebatable`
+- in the **undebatable** folder run `racket undebatable.rkt`
 
 ## Features
 Many of [HN](https://news.ycombinator.com)'s features and then:
@@ -18,8 +18,13 @@ Many of [HN](https://news.ycombinator.com)'s features and then:
 - zero-config install
 - easy backup (all state in one file)
 - as much SQL as possible
-- no state change through GET requests
-- avoid PLOP when possible and convenient (Note: SQL is rather PLOP)
+- <s>avoid PLOP when possible</s> (not easy in SQL)
+
+## Security
+
+* user input escaped when displayed
+* POST request for state change
+* auth tokens in POST requests to prevent CSRF
 
 ## TODO
 - better error messages

@@ -1,2 +1,0 @@
-#!/bin/sh
-racket -i -e '(require "serve.rkt") (thread serve)'

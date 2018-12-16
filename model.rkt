@@ -82,11 +82,12 @@
                  having rank >= 0
                  order by rank desc, created desc"
 
-              ; TODO: make "ages" view
-              ; TODO: ranking needsto be a table, because the algorithm is to complex for SQLite
+              ; TODO: perhaps make "ages" view
+              ; TODO: ranking may need to be a table, because the algorithm might be too complex for SQLite
+
               "create view ranks as
                  select items.item as item,
-                 (score / (julianday('now') - julianday(created,'unixepoch'))) as rank
+                 (score * score * score / (julianday('now') - julianday(created,'unixepoch'))) as rank
                  from items
                  join scores on items.item = scores.item"
 
