@@ -2,6 +2,14 @@
 
 - [SLC](https://blog.asmartbear.com/slc.html)
 
+- toggle between anonymous posts
+
+
+### builtin network games
+
+- [phutball](https://en.wikipedia.org/wiki/Phutball)
+- hnefatafl
+
 ### User styles that are sharable
 
 - like myspace

@@ -62,7 +62,7 @@
     (("vote") #:method "post"
      vote/page)
     (("reply" (integer-arg))
-     reply/page)
+     submit/page)
     (("edit" (integer-arg))
      edit/page)
     (("uploads")

@@ -10,7 +10,7 @@
   web-server/page
   xml)
 
-(provide submit/page reply/page newest/page item/page edit/page top/page comments/page)
+(provide submit/page newest/page item/page edit/page top/page comments/page)
 
 (define/page (process-item)
   (let ((user (get-user (current-request))))
@@ -31,13 +31,11 @@
                 (edit-item! item (~a user) (~a parent) #f (~a text) #f #f))))))))
 
 (define/page (edit/page item)
-  (if (equal? (root item) item)
-    (submit/page (current-request) item (title item) (url/item item) (text item))
-    ; TODO: perhaps it should be possible to change the 'parent' of an item
-    (reply/page (current-request) (parent item) item (text item))))
+  ; TODO: perhaps it should be possible to change the 'parent' of an item
+  (submit/page (current-request) (parent item) item (title item) (url/item item) (text item)))
 
 ; TODO: compine the submit/reply
-(define/page (submit/page (item #f) (title #f) (url #f) (text #f))
+(define/page (submit/page (parent #f) (item #f) (title #f) (url #f) (text #f))
   (let ((user (get-user (current-request))))
     (if (not user)
         (redirect-to "/login")
@@ -46,27 +44,35 @@
              (response/xexpr
                (render-page
                  user
-                 "New item"
+                 (if parent "Reply" "New item")
                  ; TODO: add cookie value to form and check that it matches the cookie on server side
                  ; to protect against CSRF
 ;                         (input ((type "hidden")
 ;                                 (name "auth")))
+                ; TODO: show item being edited
+                 (if (and parent (not text))
+                     `(ul ((class "items"))
+                        ,(render-item/single user (~a "/reply/" parent) parent)) "")
                  `(form ((action ,(embed-url process-item))
                          (method "post"))
                          (div (input    ((type        "hidden")
                                          (name        "item")
                                          (value       ,(if item (~a item) "")))))
-                         (div (input    ((class       "field")
-                                         (type        "text")
-                                         (placeholder "title")
-                                         (required    "required")
-                                         (name        "title")
-                                         (value       ,(if title title "")))))
-                         (div (input    ((class       "field")
-                                         (placeholder "url")
-                                         (type        "url")
-                                         (name        "url")
-                                         (value       ,(if url url "")))))
+                         ,(if parent
+                             `(div (input    ((type        "hidden")
+                                              (name        "parent")
+                                              (value       ,(~a parent)))))
+                             `(span (div (input    ((class       "field")
+                                                    (type        "text")
+                                                    (placeholder "title")
+                                                    (required    "required")
+                                                    (name        "title")
+                                                    (value       ,(if title title "")))))
+                                    (div (input    ((class       "field")
+                                                    (placeholder "url")
+                                                    (type        "url")
+                                                    (name        "url")
+                                                    (value       ,(if url url "")))))))
                          (div (textarea ((class       "field")
                                          (placeholder "text")
                                          (rows        "5")
@@ -75,41 +81,8 @@
                          ;     ,markdown-doc)
                          (div (input    ((class       "button")
                                          (type        "submit")
-                                         (value       "Submit")))))
-                         )))))))
+                                         (value       ,(if parent "Reply" "Submit")))))))))))))
 
-
-(define/page (reply/page parent (item #f) (text #f))
-  (let ((user (get-user (current-request))))
-    (if (not user)
-        (redirect-to "/login")
-        (send/suspend/dispatch
-          (λ (embed-url)
-             (response/xexpr
-               (render-page
-                 user
-                 "Reply"
-                 `(ul ((class "items"))
-                      ,(render-item/single user (~a "/reply/" parent) parent))
-                 `(form ((action ,(embed-url process-item))
-                         (method "post"))
-                         (div (input    ((type        "hidden")
-                                         (name        "item")
-                                         (value       ,(if item (~a item) "")))))
-                         (div (input    ((type        "hidden")
-                                         (name        "parent")
-                                         (value       ,(~a parent)))))
-                         (div (textarea ((class       "field")
-                                         (required    "required")
-                                         (placeholder "text")
-                                         (rows        "5")
-                                         (name        "text"))
-                                         ,(if text text "")))
-;                              ,markdown-doc)
-                         (div (input    ((class       "button")
-                                         (type        "submit")
-                                         (value       "Submit")))))
-                         )))))))
 
 (define (plural quantity noun)
   (if (= quantity 1)
@@ -236,7 +209,7 @@
 ;(define newest/page
 ;  (curry list-page "newest" newest))
 
-(define/page (newest/page (page 1) (perpage 10))
+(define/page (newest/page (page 1) (perpage 5))
   (let ((user (get-user (current-request))))
     (time (response/xexpr
       (render-page
@@ -247,7 +220,7 @@
                      (newest perpage (* (- page 1) perpage)))
              (li ,(pagination "newest" page))))))))
 
-(define/page (top/page (page 1) (perpage 10))
+(define/page (top/page (page 1) (perpage 5))
   (let ((user (get-user (current-request))))
     (time (response/xexpr
       (render-page
