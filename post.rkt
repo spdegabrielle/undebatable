@@ -10,7 +10,8 @@
   web-server/page
   xml)
 
-(provide submit/page newest/page item/page edit/page top/page comments/page)
+;(provide submit/page listpage newest/page item/page edit/page top/page comments/page)
+(provide (all-defined-out))
 
 (define/page (process-item)
   (let ((user (get-user (current-request))))
@@ -19,45 +20,60 @@
            ((list-no-order (binding:form #"title" title)
                            (binding:form #"text"  text)
                            (binding:form #"url"   url)
-                           (binding:form #"item"  item))
-            (if (string=? (~a item) "")
-                (create-item! (~a user) #f (~a title) (~a text) (~a url) #f)
-                (edit-item! item (~a user) #f (~a title) (~a text) (~a url) #f)))
+                           (binding:form #"item"  item)
+                           (binding:form #"auth"  auth))
+            (when (equal? (~a auth) (user->auth user))
+              (if (string=? (~a item) "")
+                  (create-item! (~a user) #f (~a title) (~a text) (~a url) #f)
+                  (edit-item! item (~a user) #f (~a title) (~a text) (~a url) #f))))
            ((list-no-order (binding:form #"parent" parent)
                            (binding:form #"text"   text)
-                           (binding:form #"item"   item))
-            (if (string=? (~a item) "")
-                (create-item! (~a user) (~a parent) #f (~a text) #f #f)
-                (edit-item! item (~a user) (~a parent) #f (~a text) #f #f))))))))
+                           (binding:form #"item"   item)
+                           (binding:form #"auth"  auth))
+            (when (equal? (~a auth) (user->auth user))
+              (if (string=? (~a item) "")
+                  (create-item! (~a user) (~a parent) #f (~a text) #f #f)
+                  (edit-item! item (~a user) (~a parent) #f (~a text) #f #f)))))))))
 
 (define/page (edit/page item)
   ; TODO: perhaps it should be possible to change the 'parent' of an item
-  (submit/page (current-request) (parent item) item (title item) (url/item item) (text item)))
+  (submit/page (current-request)
+               item
+               #:parent (parent item)
+               #:title (title item)
+               #:url (url/item item)
+               #:text (text item)))
 
-; TODO: compine the submit/reply
-(define/page (submit/page (parent #f) (item #f) (title #f) (url #f) (text #f))
+(define/page (submit/page (item #f)
+                          #:parent (parent #f)
+                          #:title (title #f)
+                          #:url (url #f)
+                          #:text (text #f))
   (let ((user (get-user (current-request))))
     (if (not user)
         (redirect-to "/login")
         (send/suspend/dispatch
           (λ (embed-url)
              (response/xexpr
-               (render-page
+               (newspage
                  user
-                 (if parent "Reply" "New item")
-                 ; TODO: add cookie value to form and check that it matches the cookie on server side
-                 ; to protect against CSRF
-;                         (input ((type "hidden")
-;                                 (name "auth")))
-                ; TODO: show item being edited
-                 (if (and parent (not text))
+                 (if item "Edit" (if parent "Reply" "New item"))
+                 (cond
+                   (item
                      `(ul ((class "items"))
-                        ,(render-item/single user (~a "/reply/" parent) parent)) "")
+                        ,(render-item/single user (~a "/reply/" item) item)))
+                   (parent
+                     `(ul ((class "items"))
+                        ,(render-item/single user (~a "/reply/" parent) parent)))
+                   (else ""))
                  `(form ((action ,(embed-url process-item))
                          (method "post"))
-                         (div (input    ((type        "hidden")
-                                         (name        "item")
-                                         (value       ,(if item (~a item) "")))))
+                         (input    ((type        "hidden")
+                                    (name        "item")
+                                    (value       ,(if item (~a item) ""))))
+                         (input    ((type        "hidden")
+                                    (name        "auth")
+                                    (value       ,(user->auth user))))
                          ,(if parent
                              `(div (input    ((type        "hidden")
                                               (name        "parent")
@@ -81,7 +97,8 @@
                          ;     ,markdown-doc)
                          (div (input    ((class       "button")
                                          (type        "submit")
-                                         (value       ,(if parent "Reply" "Submit")))))))))))))
+                                         (value       ,(if item "Update"
+                                                           (if parent "Reply" "Submit"))))))))))))))
 
 
 (define (plural quantity noun)
@@ -110,6 +127,7 @@
     ""))
 
 (define (parent-link item)
+  item
   (if (parent item)
     `(span (a ((href ,(~a "/item/" (parent item)))) " parent "))
     ""))
@@ -173,13 +191,13 @@
                    `(div (a ((class "title") (href ,(~a "/item/" item))) ,it)))))
         (else "")))
 
-; simplify this:
-; always display the title if it's there
+; TODO always display the title if it's there
 (define (render-item user here item
-                     #:text?     (text? #f)
-                     #:tree?     (children? #f))
+                     #:text? (text? #f)
+                     #:tree? (children? #f))
     `(li
-       (div ((class "votable"))
+       (div ((class ,(~a "votable " (if (< (score item) 0) "dead" "live")))
+             (id ,(~a item)))
            ,(votelinks item user here)
            (div ((class "item"))
              ,(titleline item)
@@ -195,56 +213,52 @@
 (define render-item/tree
   (curry render-item #:text? #t #:tree? #t))
 
-(define (list-page label items-fn (page 1) (perpage 5))
-  (let ((user (get-user (current-request))))
-    (time (response/xexpr
-      (render-page
+(define (listpage request
+                  #:label label
+                  #:items-fn items-fn
+                  #:page (page 1)
+                  #:here (here "/")
+                  #:perpage (perpage 10)
+                  #:render-fn (render-fn render-item))
+  (let ((user (get-user request))) ; <= TODO , is "request" needed as an arg?
+    (response/xexpr
+      (newspage
         user
+        ; TODO NEXT: set a correct "next" label here. it is passed on to "votelinks"!
+        ; should include query parameters and page.
+        ; should page number be a query parameter? yea, it should
         label
         `(ul ((class "items"))
-              ,@(map (curry render-item user "/")
-                     (items-fn perpage (* page perpage)))
-             (li ,(pagination label page))))))))
+            ,@(map (curry render-fn user here)
+                   (items-fn perpage (* (- page 1) perpage)))
+             (li ,(pagination label page)))))))
 
-;(define newest/page
-;  (curry list-page "newest" newest))
+(define/page (newest/page (page 1))
+  (curry listpage (current-request)
+                  #:label "newest"
+                  #:here (~a "newest/" page)
+                  #:items-fn newest
+                  #:page page))
 
-(define/page (newest/page (page 1) (perpage 5))
-  (let ((user (get-user (current-request))))
-    (time (response/xexpr
-      (render-page
-        user
-        "Newest"
-        `(ul ((class "items"))
-              ,@(map (curry render-item user "/")
-                     (newest perpage (* (- page 1) perpage)))
-             (li ,(pagination "newest" page))))))))
+(define/page (top/page (page 1))
+  (curry listpage (current-request)
+                  #:label "top"
+                  #:here (~a "top/" page)
+                  #:items-fn top
+                  #:page page))
 
-(define/page (top/page (page 1) (perpage 5))
-  (let ((user (get-user (current-request))))
-    (time (response/xexpr
-      (render-page
-        user
-        "Top"
-        `(ul ((class "items"))
-             ,@(map (curry render-item user "/")
-                    (top perpage (* (- page 1) perpage)))
-             (li ,(pagination "top" page))))))))
-
-(define/page (comments/page)
-  (let ((user (get-user (current-request))))
-    (time (response/xexpr
-      (render-page
-        user
-        "Comments"
-        `(ul ((class "items"))
-             ,@(map (curry render-item/single user "/")
-                    (comments))))))))
+(define/page (comments/page (page 1))
+  (curry listpage (current-request)
+                  #:label "comments"
+                  #:here (~a "comments/" page)
+                  #:items-fn comments
+                  #:render-fn render-item/single
+                  #:page page))
 
 (define/page (item/page item)
   (let ((user (get-user (current-request))))
     (response/xexpr
-      (render-page
+      (newspage
         user
         "Item"
         `(ul ((class "items"))

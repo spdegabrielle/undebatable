@@ -7,6 +7,7 @@
   "user.rkt"
   "vote.rkt"
   "bazar.rkt"
+  "search.rkt"
   web-server/servlet
   web-server/servlet-env
   web-server/dispatch)
@@ -34,42 +35,57 @@
 
 (define-values (app-dispatch app-url)
   (dispatch-rules
+
     (("")
      top/page)
     (("top")
      top/page)
     (("top" (integer-arg))
      top/page)
+
     (("newest")
      newest/page)
     (("newest" (integer-arg))
      newest/page)
+
     (("comments")
      comments/page)
+    (("comments" (integer-arg))
+     comments/page)
+
     (("login")
      login/page)
-    (("logout") ; should be post
-     ; HTTP GET can't change state!
+    (("logout") #:method "post"
      logout/page)
     (("forgot")
      forgot-password/page)
     (("user" (string-arg))
      user/page)
+
     (("submit")
      submit/page)
-    (("item" (integer-arg))
-     item/page)
-    (("vote") #:method "post"
-     vote/page)
     (("reply" (integer-arg))
      submit/page)
     (("edit" (integer-arg))
      edit/page)
+
+    (("item" (integer-arg))
+     item/page)
+
+    (("vote") #:method "post"
+     vote/page)
+
+    (("search")
+     search/page)
+    (("search" (integer-arg))
+     search/page)
+
     (("uploads")
      uploads/page)
     (("uploads" (integer-arg) (string-arg))
      ; the string arg is just there to make things look pretty
      download/page)
+
     (("bazar")
      bazar/page)
     ))

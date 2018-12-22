@@ -134,11 +134,13 @@
                    where root != descendants.item
                    order by root, descendants.item"
 
-              ; TODO descendants
-              ; TODO children
+                "create view expiries as
+                 select upload,
+                 time+(60*60*24*30*365*1000000/length(content)) as expiry
+                 from uploads")
+
               ; TODO add NOT NULL constraints
-              ))
-           new-db)))
+           new-db))))
 
 (define dbc (sqlite3-init "db.sqlite"))
 
@@ -153,10 +155,19 @@
       (current-seconds)))
   (create-login! user pw))
 
-(define (cookie->user auth)
+(define (auth->user auth)
   (sql-null->false
     (query-maybe-value dbc
-      "select user from logins where auth = ?" (false->sql-null auth))))
+      "select user from logins
+       where auth = ?"
+      (false->sql-null auth))))
+
+(define (user->auth user)
+  (sql-null->false
+    (query-maybe-value dbc
+      "select auth from logins
+       where user = ? limit 1"
+      (false->sql-null user))))
 
 (define (create-item! user parent title text url tags)
   (let ((item
@@ -165,7 +176,6 @@
             sql-null user (false->sql-null parent)
             (false->sql-null title) text (false->sql-null url)
             (false->sql-null tags) (current-seconds)))))))
-;       (create-vote! user item 0)
        item))
 
 (define (edit-item! item user parent title text url tags)
@@ -224,7 +234,9 @@
   (if user
       (sql-null->false
         (query-maybe-value dbc
-          "select item from seen where user = ? and item = ?" user item))
+          "select item from seen
+           where (user = ? and item = ?)
+           " user item))
       #t))
 
 (define (item column item)
@@ -247,8 +259,15 @@
     (query dbc "select upload, filename from uploads")))
 
 (define (download id)
-  (first (rows-result-rows
-    (query dbc "select type, content from uploads where upload=?" id))))
+  (first
+    (rows-result-rows
+      (query dbc "select type, content from uploads where upload=?" id))))
+
+(define (expiry upload)
+  (query-maybe-value dbc
+    "select expiry from expiries
+     where upload = ?"
+    upload))
 
 (define (root item)
  (query-value dbc
@@ -266,7 +285,9 @@
 
 (define (comments (limit -1) (offset -1))
  (query-list dbc
-   "select item from comments
+   "select comments.item as item from comments
+    join ranks on ranks.item = comments.item
+    order by rank desc
     limit ? offset ?"
    limit offset))
 
@@ -282,13 +303,18 @@
 
 (define (descendants item)
  (query-list dbc
-   "select descendant from descendants where item = ?" item))
+   "select descendant from descendants
+    where item = ?" item))
 
-(define (search terms)
-  ;TODO
-  ; https://sqlite.org/fts3.html
-  (query-list dbc
-    "SELECT count(*) FROM enrondata1 WHERE content MATCH 'linux';"))
+(define (search term (limit -1) (offset -1))
+  (sql-null->false
+    (query-list dbc
+      "select item from items
+       where text like $1
+       or title like $1
+       limit $2 offset $3"
+      (~a "%" term "%")
+      limit offset)))
 
 (define (good-login? user pw)
   (cond

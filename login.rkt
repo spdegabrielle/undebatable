@@ -19,7 +19,7 @@
 ; LOGIN
 
 (define (get-user request)
-  (cookie->user
+  (auth->user
     (cond
       ((findf
          (λ (maybe-cookie) (string=? (client-cookie-name maybe-cookie) "login"))
@@ -44,7 +44,7 @@
                                 ; Set-Cookie: JSESSIONID=xxxxx; SameSite=Strict
                      #:headers (list (cookie->header (make-cookie "login" login)))))
              (response/xexpr
-               (render-page (get-user (current-request))
+               (newspage (get-user (current-request))
                             "Error" "Unable to create user account."))))))
 
   (define/page (login!)
@@ -57,7 +57,7 @@
                     (redirect-to "/"
                       #:headers (list (cookie->header (make-cookie "login" login))))
                     (response/xexpr
-                      (render-page (get-user (current-request)) "Error" "Login failed.")))))))
+                      (newspage (get-user (current-request)) "Error" "Login failed.")))))))
 
   (let ((user (get-user (current-request))))
     (if user
@@ -65,7 +65,7 @@
     (send/suspend/dispatch
       (λ (embed-url)
          (response/xexpr
-           (render-page
+           (newspage
              user
              "Login"
              `(form ((action ,(embed-url login!))
@@ -113,8 +113,13 @@
                                   (value       "Register"))))))))))))
 
 (define/page (logout/page)
-  (redirect-to "/"
-    #:headers (list (cookie->header (make-cookie "login" "")))))
+  (let ((user (get-user (current-request))))
+    (match (request-bindings/raw (current-request))
+           ((list-no-order
+               (binding:form #"auth" auth))
+            (when (equal? (~a auth) (user->auth user))
+                  (redirect-to "/"
+                  #:headers (list (cookie->header (make-cookie "login" "")))))))))
 
 ;; PASSWORD RECOVERY
 
@@ -128,7 +133,7 @@
     (send/suspend
       (λ (k-url)
         (response/xexpr
-          (render-page
+          (newspage
                     (get-user (current-request))
                     "Forgot password"
                     `(form ((action ,k-url)
@@ -137,9 +142,9 @@
                            (div (input ((type        "email")
                                         (name        "email")
                                         (placeholder "email")
-                                        (required    "required")))
+                                        (required    "required"))))
                            (div (input ((type        "submit")
-                                        (value       "Reset password")))))))))))
+                                        (value       "Reset password"))))))))))
 
   (define email-req
     (send/suspend
@@ -158,18 +163,18 @@
                #:auth-passwd password
                #:tls-encode ports->ssl-ports)
              (response/xexpr
-               (render-page (get-user (current-request))
+               (newspage (get-user (current-request))
                          "Reset your password"
                          "Password recovery email sent."))))))))
 
-  ;TODO: reset password and redirect to frontpage
-   (response/xexpr
-     (render-page
-       (get-user (current-request))
-               "Reset password"
-               `(form ((method "post"))
-                      (input ((type        "password")
-                              (placeholder "new password")
-                              (required    "required")))
-                      (input ((type  "submit")
-                              (value "Reset password")))))))
+;TODO: reset password and redirect to frontpage
+ (response/xexpr
+   (newspage
+     (get-user (current-request)
+             "Reset password"
+             `(form ((method "post"))
+                    (input ((type        "password")
+                            (placeholder "new password")
+                            (required    "required")))
+                    (input ((type  "submit")
+                            (value "Reset password"))))))))

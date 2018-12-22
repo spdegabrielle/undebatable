@@ -10,12 +10,6 @@
   web-server/page
   web-server/http/id-cookie)
 
-; TODO: optionable anonymous file upload, like wetransfer
-; but these files delete themselves after 30 days, perhaps?
-
-; TODO: post requests have a MIME type, yes?
-; use that to determine file type
-
 (provide (all-defined-out))
 
 (define/page (uploads/page)
@@ -26,35 +20,36 @@
                (let ((user (get-user (current-request)))
                      (content-type (header-value (headers-assq #"Content-Type" headers))))
                     (when (> (bytes-length content) 0)
-                          (create-upload! user (~a filename) content-type content))))))
-               (request-bindings/raw (current-request)))
+                          (create-upload! user (~a filename) content-type content)))
+               (request-bindings/raw (current-request))))))
     (redirect-to "/uploads"))
 
   (let ((user (get-user (current-request))))
-        (send/suspend/dispatch
-          (λ (embed-url)
-             (response/xexpr
-               (render-page
-                 user
-                 "Upload"
-                 `(form ((action ,(embed-url process-upload))
-                         (method "post")
-                         (enctype "multipart/form-data"))
-                         (span (input ((class       "field")
-                                       (type        "file")
-                                       (name        "file")
-                                       (required    "required")
-                                       (multiple    "multiple"))))
-                         (span (input ((class  "button")
-                                       (type   "submit")
-                                       (value  "Upload")))))
-                 `(ul ,@(map (λ (f) `(li ,(download-link f)))
-                             (uploads)))))))))
+      (send/suspend/dispatch
+        (λ (embed-url)
+           (response/xexpr
+             (newspage
+               user
+               "Upload"
+               `(form ((action ,(embed-url process-upload))
+                       (method "post")
+                       (enctype "multipart/form-data")
+                       (span (input ((class       "field")
+                                     (type        "file")
+                                     (name        "file")
+                                     (required    "required")
+                                     (multiple    "multiple"))))
+                       (span (input ((class  "button")
+                                     (type   "submit")
+                                     (value  "Upload"))))))
+               `(ul ,@(map (λ (f) `(li ,(download-link f)))
+                           (uploads)))))))))
 
 
 ; FILES
 
 (define (download-link id/filename)
+  ; TODO: id/filename vector is a bit ugly
   `(a ((href ,(~a "/uploads/"
                   (vector-ref id/filename 0) "/"
                   (vector-ref id/filename 1))))

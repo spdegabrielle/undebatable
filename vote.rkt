@@ -10,24 +10,24 @@
 
 ; use different arrow chars for enabled/disabled/applied
 
-(define (votelink item (direction 1) (user null) (then null))
-  `(div (form ((method "post") (action "/vote"))
-     (input ((type "hidden") (name "item") (value ,(~a item))))
-     (input ((type "hidden") (name "direction") (value ,(~a direction))))
-     (input ((type "hidden") (name "then") (value ,(~a then))))
-     (input ((class "arrow")
-             (type  "submit")
-             ,@(match
-                 (list direction
-                       (voted user item)
-                       (votable? user item direction))
-                 ((list 1  _  #t) `((value "△")))
-                 ((list 1  1   _) `((value "▲")))
-                 ((list 1  _  #f) `((value "△") (disabled "disabled")))
-                 ((list -1 _  #t) `((value "▽")))
-                 ((list -1 -1  _) `((value "▼")))
-                 ((list -1 _  #f) `((value "▽") (disabled "disabled")))
-                 ))))))
+(define (votelink item (direction 1) (user null) (then #f))
+  `(div
+     (form ((method "post") (action "/vote"))
+       (input ((type "hidden") (name "item") (value ,(~a item))))
+       (input ((type "hidden") (name "direction") (value ,(~a direction))))
+       (input ((type "hidden") (name "then") (value ,(~a then))))
+       (input ((class "arrow")
+               (type  "submit")
+               ,@(match
+                   (list direction
+                         (voted user item)
+                         (votable? user item direction))
+                   ((list 1  _  #t) `((value "△")))
+                   ((list 1  1   _) `((value "▲")))
+                   ((list 1  _  #f) `((value "△") (disabled "disabled")))
+                   ((list -1 _  #t) `((value "▽")))
+                   ((list -1 -1  _) `((value "▼")))
+                   ((list -1 _  #f) `((value "▽") (disabled "disabled")))))))))
 
 (define (votelinks item (user null) (then null))
       `(span ((class "votelinks"))
@@ -36,7 +36,6 @@
              ,(votelink item -1 user then) ""))
 
 (define/page (vote/page)
-             ; TODO just redirect to whence
   (match (request-bindings/raw (current-request))
     ((list-no-order (binding:form #"item" item)
                     (binding:form #"direction" direction)
@@ -53,4 +52,4 @@
                               direction))
               (delete-vote! user
                             item))
-            (redirect-to (~a then))))))
+           (redirect-to (~a then "#" item))))))

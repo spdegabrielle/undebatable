@@ -3,29 +3,19 @@ body {
   margin-left: auto;
   margin-right: auto;
   margin-bottom: 5em;
-  width: 40em;
+  width: 50em;
   max-width: 100vw;
   min-width: 20em;
   /* prevent page shifting */
   overflow-x: hidden;
   overflow-y: scroll;
-}
-
-body {
-    background-image: url("antisocial.png");
-    background-repeat: no-repeat;
-    background-position-x: 0vw;
-    background-position-y: 92vh;
-    background-size: auto 8vh;
-    background-attachment: fixed;
+  background: hsl(0, 0%, 100%);
 }
 
 .votable {
   margin-bottom: 1em;
   display: table;
 }
-
-
 
 .item {
   display: table-cell;
@@ -45,10 +35,6 @@ body {
 .unseen:link, .unseen:visited {
   font-weight: bold;
   color: red!important;
-}
-
-.title {
-  font-weight: bold;
 }
 
 img {
@@ -80,7 +66,6 @@ pre, code {
 
 .menu {
   margin-top: 1em;
-  border-bottom: 1px solid lightgray;
   margin-bottom: 2em;
   display: flex;
   vertical-align: middle;
@@ -103,18 +88,19 @@ pre, code {
 }
 
 a:link, a:visited {
-  color: rgb(0,0,0);
+  color: hsl(0,0%,0%);
   text-decoration: none;
 }
 
+
 .title:link {
-  color: rgb(0,0,0);
+  color: hsl(0,0%,0%);
+  font-weight: bold;
   text-decoration: none;
 }
 
 .title:visited {
-  color: rgb(120,120,120);
-  text-decoration: none;
+  color: hsl(0,0%,20%);
 }
 
 .domain {
@@ -188,7 +174,6 @@ textarea {
   bottom: 1em;
   right: 1em;
   font-size: smaller;
-  opacity: 0.5;
 }
 
 blockquote {
@@ -206,9 +191,25 @@ textarea:focus ~ .md-ref {
   display: none;
 }
 
-.search {
+.plain {
+  display: inline;
+}
+
+.plain input {
   width: 6em;
   background: none;
   border: none;
   color: black;
+}
+
+.plain input[type=submit] {
+  cursor: pointer;
+}
+
+.votable:target > .votelinks {
+  border-left: 2px solid red;
+}
+
+.dead .item {
+  opacity: 0.5;
 }
