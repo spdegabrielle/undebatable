@@ -137,10 +137,10 @@
                 "create view expiries as
                  select upload,
                  time+(60*60*24*30*365*1000000/length(content)) as expiry
-                 from uploads")
+                 from uploads"))
 
               ; TODO add NOT NULL constraints
-           new-db))))
+       new-db)))
 
 (define dbc (sqlite3-init "db.sqlite"))
 
