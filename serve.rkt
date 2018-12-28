@@ -65,7 +65,7 @@
     (("submit")
      submit/page)
     (("reply" (integer-arg))
-     submit/page)
+     reply/page)
     (("edit" (integer-arg))
      edit/page)
 
@@ -87,5 +87,5 @@
      download/page)
 
     (("bazar")
-     bazar/page)
-    ))
+     bazar/page)))
+    

@@ -3,6 +3,12 @@ A [**HN**](https://news.ycombinator.com)-like written in Racket.
 
 **Not yet stable! But feel free to try it out.**
 
+## Similar apps
+- [Postmill](https://gitlab.com/edgyemma/Postmill)
+- [HackerNews](https://news.ycombinator.com)
+  * [Anarki]()
+- [Lobsters]()
+
 ## How to run
 - install [**Racket**](https://racket-lang.org) version >= 7.0
 - in the **undebatable** folder run `./undebatable.rkt`

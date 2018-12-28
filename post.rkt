@@ -38,13 +38,17 @@
 (define/page (edit/page item)
   ; TODO: perhaps it should be possible to change the 'parent' of an item
   (submit/page (current-request)
-               item
+               #:item item
                #:parent (parent item)
                #:title (title item)
                #:url (url/item item)
                #:text (text item)))
 
-(define/page (submit/page (item #f)
+(define/page (reply/page item)
+  (submit/page (current-request)
+               #:parent item))
+
+(define/page (submit/page #:item (item #f)
                           #:parent (parent #f)
                           #:title (title #f)
                           #:url (url #f)
@@ -68,37 +72,37 @@
                    (else ""))
                  `(form ((action ,(embed-url process-item))
                          (method "post"))
-                         (input    ((type        "hidden")
-                                    (name        "item")
-                                    (value       ,(if item (~a item) ""))))
-                         (input    ((type        "hidden")
-                                    (name        "auth")
-                                    (value       ,(user->auth user))))
-                         ,(if parent
-                             `(div (input    ((type        "hidden")
-                                              (name        "parent")
-                                              (value       ,(~a parent)))))
-                             `(span (div (input    ((class       "field")
-                                                    (type        "text")
-                                                    (placeholder "title")
-                                                    (required    "required")
-                                                    (name        "title")
-                                                    (value       ,(if title title "")))))
-                                    (div (input    ((class       "field")
-                                                    (placeholder "url")
-                                                    (type        "url")
-                                                    (name        "url")
-                                                    (value       ,(if url url "")))))))
-                         (div (textarea ((class       "field")
-                                         (placeholder "text")
-                                         (rows        "5")
-                                         (name        "text"))
-                                         ,(if text text "")))
-                         ;     ,markdown-doc)
-                         (div (input    ((class       "button")
-                                         (type        "submit")
-                                         (value       ,(if item "Update"
-                                                           (if parent "Reply" "Submit"))))))))))))))
+                       (input    ((type        "hidden")
+                                  (name        "item")
+                                  (value       ,(if item (~a item) ""))))
+                       (input    ((type        "hidden")
+                                  (name        "auth")
+                                  (value       ,(user->auth user))))
+                       ,(if parent
+                           `(div (input    ((type        "hidden")
+                                            (name        "parent")
+                                            (value       ,(~a parent)))))
+                           `(span (div (input    ((class       "field")
+                                                  (type        "text")
+                                                  (placeholder "title")
+                                                  (required    "required")
+                                                  (name        "title")
+                                                  (value       ,(if title title "")))))
+                                  (div (input    ((class       "field")
+                                                  (placeholder "url")
+                                                  (type        "url")
+                                                  (name        "url")
+                                                  (value       ,(if url url "")))))))
+                       (div (textarea ((class       "field")
+                                       (placeholder "text")
+                                       (rows        "5")
+                                       (name        "text"))
+                                     ,(if text text "")))
+                       ;     ,markdown-doc)
+                       (div (input    ((class       "button")
+                                       (type        "submit")
+                                       (value       ,(if item "Update"
+                                                         (if parent "Reply" "Submit"))))))))))))))
 
 
 (define (plural quantity noun)
@@ -213,14 +217,14 @@
 (define render-item/tree
   (curry render-item #:text? #t #:tree? #t))
 
-(define (listpage request
+(define/page (listpage
                   #:label label
                   #:items-fn items-fn
                   #:page (page 1)
                   #:here (here "/")
                   #:perpage (perpage 10)
                   #:render-fn (render-fn render-item))
-  (let ((user (get-user request))) ; <= TODO , is "request" needed as an arg?
+  (let ((user (get-user (current-request)))) ; <= TODO , is "request" needed as an arg?
     (response/xexpr
       (newspage
         user
@@ -233,27 +237,21 @@
                    (items-fn perpage (* (- page 1) perpage)))
              (li ,(pagination label page)))))))
 
-(define/page (newest/page (page 1))
-  (curry listpage (current-request)
-                  #:label "newest"
-                  #:here (~a "newest/" page)
-                  #:items-fn newest
-                  #:page page))
+(define newest/page
+  (curry listpage #:label "newest"
+;                  #:here (~a "newest/" page) ; TODO set here properly
+                  #:items-fn newest))
 
-(define/page (top/page (page 1))
-  (curry listpage (current-request)
-                  #:label "top"
-                  #:here (~a "top/" page)
-                  #:items-fn top
-                  #:page page))
+(define top/page
+  (curry listpage #:label "top"
+;                  #:here (~a "top/" page)
+                  #:items-fn top))
 
-(define/page (comments/page (page 1))
-  (curry listpage (current-request)
-                  #:label "comments"
-                  #:here (~a "comments/" page)
+(define comments/page
+  (curry listpage #:label "comments"
+;                  #:here (~a "comments/" page)
                   #:items-fn comments
-                  #:render-fn render-item/single
-                  #:page page))
+                  #:render-fn render-item/single))
 
 (define/page (item/page item)
   (let ((user (get-user (current-request))))
